@@ -934,3 +934,26 @@ if __name__ == "__main__":
     # 테스트 실행
     print("=== 오픈소스 LLM 인터페이스 테스트 ===")
     asyncio.run(test_model_interface())
+
+
+class StreamingInterface(BaseModelInterface):
+    """스트리밍 지원 인터페이스"""
+
+    async def generate_stream(self, prompt: str, params: InferenceParams) -> AsyncIterator[str]:
+        """스트리밍 생성"""
+        # 구현 예정
+        yield "스트리밍 기능은 v2.0에서 구현 예정입니다."
+
+
+class AdvancedVLLMInterface(VLLMInterface):
+    """고급 vLLM 기능"""
+
+    def enable_speculative_decoding(self, draft_model: str):
+        """추측 디코딩 활성화"""
+        # 구현 예정
+        pass
+
+    def enable_prefix_caching(self):
+        """프리픽스 캐싱 활성화"""
+        # 구현 예정
+        pass

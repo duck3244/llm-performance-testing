@@ -714,3 +714,48 @@ if __name__ == "__main__":
     print(f"  권장 배치 크기: {safe_batch}")
 
     print("\n✅ 설정 관리 시스템 테스트 완료")
+
+
+@dataclass
+class AdvancedOptimizationConfig:
+    """고급 최적화 설정"""
+    enable_streaming: bool = False
+    enable_ab_testing: bool = False
+    cloud_deployment: bool = False
+    web_ui_enabled: bool = False
+
+    # vLLM 고급 설정
+    speculative_decoding: bool = False
+    prefix_caching: bool = False
+    chunked_prefill: bool = False
+
+    # 모니터링 설정
+    prometheus_metrics: bool = False
+    grafana_dashboard: bool = False
+
+    # 자동 스케일링
+    auto_scaling: bool = False
+    min_replicas: int = 1
+    max_replicas: int = 10
+
+
+class CloudConfig:
+    """클라우드 배포 설정"""
+
+    def __init__(self):
+        self.provider = "local"  # local, aws, gcp, azure
+        self.instance_type = "auto"
+        self.region = "auto"
+        self.auto_shutdown = True
+        self.cost_limit_usd = 10.0
+
+
+class WebUIConfig:
+    """웹 UI 설정"""
+
+    def __init__(self):
+        self.enabled = False
+        self.host = "localhost"
+        self.port = 8080
+        self.auth_required = True
+        self.ssl_enabled = False
