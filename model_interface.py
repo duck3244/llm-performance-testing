@@ -1,30 +1,38 @@
 """
-오픈소스 LLM 모델 인터페이스 및 최적화된 추론 엔진
+안전성 강화된 오픈소스 LLM 모델 인터페이스
+메모리 누수, 스레드 안전성, 성능 문제 해결
 """
+import asyncio
 import time
 import torch
-import asyncio
-from typing import List, Dict, Any, Optional, AsyncIterator, Union
-from dataclasses import dataclass, asdict
-from abc import ABC, abstractmethod
+import psutil
+import gc
+import threading
+import uuid
 import logging
 from datetime import datetime
-import psutil
-import threading
-from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Union, AsyncIterator
+from dataclasses import dataclass, asdict
+from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager, contextmanager
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import queue
+import weakref
 
-from config import ModelConfig, InferenceParams, OptimizationConfig
+from config import ModelConfig, InferenceParams, OptimizationConfig, get_resource_manager
 
 @dataclass
 class ModelResponse:
     """모델 응답 데이터 클래스"""
     content: str
     model: str
-    generation_stats: Dict[str, Any]  # tokens/sec, memory usage, etc.
+    generation_stats: Dict[str, Any]
     latency: float
     timestamp: datetime
     params: InferenceParams
     metadata: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 @dataclass
 class BatchResponse:
@@ -34,135 +42,283 @@ class BatchResponse:
     avg_tokens_per_second: float
     peak_memory_usage: float
     total_latency: float
-    throughput: float  # requests per second
+    throughput: float
     success_count: int
     error_count: int
+    metadata: Optional[Dict[str, Any]] = None
 
-@dataclass
-class PerformanceMetrics:
-    """성능 메트릭 클래스"""
-    tokens_per_second: float
-    memory_usage_mb: float
-    gpu_utilization: float
-    cpu_utilization: float
-    latency_p50: float
-    latency_p95: float
-    latency_p99: float
-    throughput: float
-
-class BaseModelInterface(ABC):
-    """기본 모델 인터페이스"""
+class SafeModelInterface(ABC):
+    """안전한 기본 모델 인터페이스"""
 
     def __init__(self, config: ModelConfig, optimization_config: OptimizationConfig):
         self.config = config
         self.optimization_config = optimization_config
-        self.logger = logging.getLogger(f"{self.__class__.__name__}")
+        self.logger = logging.getLogger(f"{self.__class__.__name__}_{config.name}")
+
+        # 모델 상태
         self.model = None
         self.tokenizer = None
         self.device = None
-        self.performance_monitor = PerformanceMonitor()
+        self._is_loaded = False
+        self._load_lock = threading.RLock()
+
+        # 안전성 관련
+        self._memory_monitor = MemoryMonitor()
+        self._request_limiter = RequestLimiter(max_concurrent=4)
+        self._health_checker = HealthChecker()
+
+        # 리소스 매니저에 등록
+        self.resource_manager = get_resource_manager()
+        self.resource_manager.register_model(config.name, self)
+
+        # 모델 초기화
         self._initialize_model()
 
     @abstractmethod
-    def _initialize_model(self):
-        """모델 초기화"""
+    def _load_model_impl(self):
+        """실제 모델 로딩 구현 (서브클래스에서 구현)"""
         pass
+
+    def _initialize_model(self):
+        """안전한 모델 초기화"""
+        with self._load_lock:
+            if self._is_loaded:
+                return
+
+            try:
+                # 메모리 체크
+                if not self._memory_monitor.check_available_memory(self.config):
+                    raise RuntimeError("Insufficient memory for model loading")
+
+                # 헬스 체크
+                if not self._health_checker.check_system_health():
+                    raise RuntimeError("System health check failed")
+
+                # 실제 모델 로딩
+                self._load_model_impl()
+                self._is_loaded = True
+
+                self.logger.info(f"Model {self.config.name} loaded successfully")
+
+            except Exception as e:
+                self.logger.error(f"Failed to initialize model {self.config.name}: {e}")
+                self._cleanup()
+                raise
+
+    async def generate_async(self, prompt: str, params: InferenceParams) -> ModelResponse:
+        """안전한 비동기 텍스트 생성"""
+        # 요청 제한 확인
+        async with self._request_limiter:
+            return await self._generate_with_safety_checks(prompt, params)
+
+    async def _generate_with_safety_checks(self, prompt: str, params: InferenceParams) -> ModelResponse:
+        """안전성 검사를 포함한 생성"""
+        start_time = time.time()
+
+        try:
+            # 모델 로드 상태 확인
+            if not self._is_loaded:
+                self._initialize_model()
+
+            # 메모리 체크
+            self._memory_monitor.check_memory_before_generation()
+
+            # 입력 검증
+            validated_prompt = self._validate_input(prompt)
+            validated_params = self._validate_params(params)
+
+            # 실제 생성
+            response = await self._generate_impl(validated_prompt, validated_params)
+
+            # 후처리
+            response.latency = time.time() - start_time
+            response.timestamp = datetime.now()
+            response.model = self.config.name
+
+            return response
+
+        except Exception as e:
+            self.logger.error(f"Generation failed: {e}")
+            return ModelResponse(
+                content="",
+                model=self.config.name,
+                generation_stats={},
+                latency=time.time() - start_time,
+                timestamp=datetime.now(),
+                params=params,
+                error=str(e)
+            )
 
     @abstractmethod
-    async def generate_async(self, prompt: str, params: InferenceParams) -> ModelResponse:
-        """비동기 텍스트 생성"""
+    async def _generate_impl(self, prompt: str, params: InferenceParams) -> ModelResponse:
+        """실제 생성 구현 (서브클래스에서 구현)"""
         pass
 
-    def generate(self, prompt: str, params: InferenceParams) -> ModelResponse:
-        """동기 텍스트 생성"""
-        return asyncio.run(self.generate_async(prompt, params))
+    def _validate_input(self, prompt: str) -> str:
+        """입력 검증"""
+        if not prompt or not prompt.strip():
+            raise ValueError("Empty prompt")
+
+        # 길이 제한
+        if len(prompt) > 100000:  # 100K 문자 제한
+            self.logger.warning(f"Prompt too long ({len(prompt)} chars), truncating")
+            prompt = prompt[:100000]
+
+        return prompt.strip()
+
+    def _validate_params(self, params: InferenceParams) -> InferenceParams:
+        """파라미터 검증"""
+        # 이미 __post_init__에서 검증되지만 추가 검증
+        if params.max_new_tokens > 4096:
+            self.logger.warning(f"max_new_tokens too large ({params.max_new_tokens}), limiting to 4096")
+            params.max_new_tokens = 4096
+
+        return params
 
     async def generate_batch_async(self, prompts: List[str], params: InferenceParams,
-                                  max_concurrent: int = 4) -> BatchResponse:
-        """배치 비동기 생성"""
+                                  max_concurrent: int = None) -> BatchResponse:
+        """안전한 배치 생성"""
+        if not prompts:
+            return BatchResponse([], 0, 0, 0, 0, 0, 0, 0)
+
+        max_concurrent = max_concurrent or min(len(prompts), self._request_limiter.max_concurrent)
         start_time = time.time()
+
+        # 세마포어로 동시 실행 제한
         semaphore = asyncio.Semaphore(max_concurrent)
 
-        async def generate_with_semaphore(prompt: str) -> Optional[ModelResponse]:
+        async def generate_with_semaphore(prompt: str) -> ModelResponse:
             async with semaphore:
-                try:
-                    return await self.generate_async(prompt, params)
-                except Exception as e:
-                    self.logger.error(f"Error generating response: {e}")
-                    return None
+                return await self.generate_async(prompt, params)
 
-        # 성능 모니터링 시작
-        self.performance_monitor.start_monitoring()
-
+        # 배치 처리
         tasks = [generate_with_semaphore(prompt) for prompt in prompts]
-        responses = await asyncio.gather(*tasks)
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # 성능 모니터링 종료
-        perf_metrics = self.performance_monitor.stop_monitoring()
+        # 결과 처리
+        valid_responses = []
+        error_count = 0
 
-        total_latency = time.time() - start_time
-        valid_responses = [r for r in responses if r is not None]
+        for response in responses:
+            if isinstance(response, Exception):
+                error_count += 1
+                self.logger.error(f"Batch generation error: {response}")
+            elif isinstance(response, ModelResponse):
+                if response.error:
+                    error_count += 1
+                else:
+                    valid_responses.append(response)
 
         # 통계 계산
+        total_latency = time.time() - start_time
         total_tokens = sum(r.generation_stats.get('total_tokens', 0) for r in valid_responses)
         avg_tokens_per_second = total_tokens / total_latency if total_latency > 0 else 0
         throughput = len(valid_responses) / total_latency if total_latency > 0 else 0
+        peak_memory = self._memory_monitor.get_peak_memory_usage()
 
         return BatchResponse(
             responses=valid_responses,
             total_tokens=total_tokens,
             avg_tokens_per_second=avg_tokens_per_second,
-            peak_memory_usage=perf_metrics.memory_usage_mb,
+            peak_memory_usage=peak_memory,
             total_latency=total_latency,
             throughput=throughput,
             success_count=len(valid_responses),
-            error_count=len(responses) - len(valid_responses)
+            error_count=error_count
         )
 
     def get_model_info(self) -> Dict[str, Any]:
         """모델 정보 반환"""
         try:
-            model_size = sum(p.numel() for p in self.model.parameters())
-            return {
-                'model_name': self.config.name,
-                'model_path': self.config.model_path,
-                'model_type': self.config.model_type,
-                'device': str(self.device),
-                'dtype': self.config.dtype,
-                'parameter_count': model_size,
-                'memory_footprint_mb': self._get_memory_usage(),
-                'quantization': {
-                    'load_in_4bit': self.config.load_in_4bit,
-                    'load_in_8bit': self.config.load_in_8bit
-                }
+            info = {
+                'name': self.config.name,
+                'path': self.config.model_path,
+                'type': self.config.model_type,
+                'device': str(self.device) if self.device else 'unknown',
+                'loaded': self._is_loaded,
+                'memory_usage_mb': self._get_memory_usage(),
+                'health_status': self._health_checker.get_status()
             }
+
+            if self._is_loaded and self.model:
+                try:
+                    param_count = sum(p.numel() for p in self.model.parameters())
+                    info['parameter_count'] = param_count
+                    info['parameter_count_human'] = self._format_parameter_count(param_count)
+                except:
+                    pass
+
+            return info
+
         except Exception as e:
             self.logger.error(f"Error getting model info: {e}")
-            return {}
+            return {'name': self.config.name, 'error': str(e)}
+
+    def _format_parameter_count(self, count: int) -> str:
+        """파라미터 수를 읽기 쉽게 포맷"""
+        if count >= 1e9:
+            return f"{count/1e9:.1f}B"
+        elif count >= 1e6:
+            return f"{count/1e6:.1f}M"
+        elif count >= 1e3:
+            return f"{count/1e3:.1f}K"
+        else:
+            return str(count)
 
     def _get_memory_usage(self) -> float:
         """메모리 사용량 반환 (MB)"""
-        if torch.cuda.is_available() and self.device.type == 'cuda':
-            return torch.cuda.memory_allocated(self.device) / 1024 / 1024
-        else:
-            return psutil.Process().memory_info().rss / 1024 / 1024
+        return self._memory_monitor.get_current_memory_usage()
 
-class TransformersInterface(BaseModelInterface):
-    """HuggingFace Transformers 인터페이스"""
+    def _cleanup(self):
+        """리소스 정리"""
+        try:
+            if hasattr(self, 'model') and self.model is not None:
+                # 모델을 CPU로 이동
+                if hasattr(self.model, 'cpu'):
+                    self.model.cpu()
 
-    def _initialize_model(self):
-        """Transformers 모델 초기화"""
+                # 메모리에서 제거
+                del self.model
+                self.model = None
+
+            if hasattr(self, 'tokenizer') and self.tokenizer is not None:
+                del self.tokenizer
+                self.tokenizer = None
+
+            # CUDA 캐시 정리
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+
+            # 가비지 컬렉션
+            gc.collect()
+
+            self._is_loaded = False
+            self.logger.info(f"Model {self.config.name} cleaned up")
+
+        except Exception as e:
+            self.logger.error(f"Error during cleanup: {e}")
+
+    def __del__(self):
+        """소멸자"""
+        self._cleanup()
+
+class SafeTransformersInterface(SafeModelInterface):
+    """안전한 Transformers 인터페이스"""
+
+    def _load_model_impl(self):
+        """Transformers 모델 로딩"""
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-            import torch
 
-            self.logger.info(f"Loading model: {self.config.model_path}")
+            self.logger.info(f"Loading Transformers model: {self.config.model_path}")
 
             # 토크나이저 로드
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.config.model_path,
                 trust_remote_code=self.config.trust_remote_code,
-                padding_side="left"
+                padding_side="left",
+                use_fast=True  # fast tokenizer 사용
             )
 
             # 패딩 토큰 설정
@@ -181,23 +337,54 @@ class TransformersInterface(BaseModelInterface):
             elif self.config.load_in_8bit:
                 quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
-            # 모델 로드
+            # 장치 맵 설정
+            device_map = self.config.device
+            if device_map == "auto":
+                device_map = "auto"
+            elif device_map == "cpu":
+                device_map = "cpu"
+            else:
+                device_map = {"": self.config.device}
+
+            # 모델 로드 arguments
             model_kwargs = {
                 'trust_remote_code': self.config.trust_remote_code,
                 'torch_dtype': getattr(torch, self.config.dtype),
-                'device_map': self.config.device if self.config.device != "auto" else "auto",
-                'quantization_config': quantization_config,
+                'device_map': device_map,
+                'low_cpu_mem_usage': True,  # 메모리 효율성
             }
 
-            if self.config.use_flash_attention:
-                model_kwargs['attn_implementation'] = "flash_attention_2"
+            if quantization_config:
+                model_kwargs['quantization_config'] = quantization_config
 
+            # Flash Attention 설정
+            if self.config.use_flash_attention:
+                try:
+                    model_kwargs['attn_implementation'] = "flash_attention_2"
+                except:
+                    self.logger.warning("Flash Attention 2 not available, using default")
+
+            # 모델 로드
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.config.model_path,
                 **model_kwargs
             )
 
             # 최적화 적용
+            self._apply_optimizations()
+
+            # 장치 정보 저장
+            self.device = next(self.model.parameters()).device
+            self.logger.info(f"Model loaded on device: {self.device}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to load Transformers model: {e}")
+            raise
+
+    def _apply_optimizations(self):
+        """모델 최적화 적용"""
+        try:
+            # BetterTransformer (안전하게 적용)
             if self.optimization_config.enable_bettertransformer:
                 try:
                     self.model = self.model.to_bettertransformer()
@@ -205,31 +392,40 @@ class TransformersInterface(BaseModelInterface):
                 except Exception as e:
                     self.logger.warning(f"BetterTransformer failed: {e}")
 
+            # Torch Compile (안전하게 적용)
             if self.optimization_config.enable_torch_compile:
                 try:
-                    self.model = torch.compile(self.model)
-                    self.logger.info("Torch compile enabled")
+                    # Python 3.11+ 및 적절한 PyTorch 버전에서만
+                    import sys
+                    if sys.version_info >= (3, 11):
+                        self.model = torch.compile(self.model, mode="default")
+                        self.logger.info("Torch compile enabled")
+                    else:
+                        self.logger.warning("Torch compile requires Python 3.11+")
                 except Exception as e:
                     self.logger.warning(f"Torch compile failed: {e}")
 
-            self.device = next(self.model.parameters()).device
-            self.logger.info(f"Model loaded on device: {self.device}")
+            # Gradient checkpointing (메모리 절약)
+            if self.optimization_config.gradient_checkpointing:
+                try:
+                    self.model.gradient_checkpointing_enable()
+                    self.logger.info("Gradient checkpointing enabled")
+                except Exception as e:
+                    self.logger.warning(f"Gradient checkpointing failed: {e}")
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize model: {e}")
-            raise
+            self.logger.error(f"Optimization application failed: {e}")
 
-    async def generate_async(self, prompt: str, params: InferenceParams) -> ModelResponse:
-        """Transformers를 통한 비동기 텍스트 생성"""
-        start_time = time.time()
-
+    async def _generate_impl(self, prompt: str, params: InferenceParams) -> ModelResponse:
+        """Transformers 생성 구현"""
         def generate_sync():
             # 토큰화
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
                 padding=True,
-                truncation=True
+                truncation=True,
+                max_length=4096  # 안전한 최대 길이
             ).to(self.device)
 
             input_length = inputs['input_ids'].shape[1]
@@ -253,10 +449,10 @@ class TransformersInterface(BaseModelInterface):
             }
 
             # 생성 실행
+            generation_start = time.time()
             with torch.no_grad():
-                generation_start = time.time()
                 outputs = self.model.generate(**inputs, **generation_kwargs)
-                generation_time = time.time() - generation_start
+            generation_time = time.time() - generation_start
 
             # 결과 디코딩
             generated_tokens = outputs[0][input_length:]
@@ -266,694 +462,354 @@ class TransformersInterface(BaseModelInterface):
             total_tokens = len(generated_tokens)
             tokens_per_second = total_tokens / generation_time if generation_time > 0 else 0
 
-            return generated_text, {
-                'input_tokens': input_length,
-                'output_tokens': total_tokens,
-                'total_tokens': input_length + total_tokens,
-                'tokens_per_second': tokens_per_second,
-                'generation_time': generation_time,
-                'memory_usage_mb': self._get_memory_usage()
-            }
+            return ModelResponse(
+                content=generated_text,
+                model=self.config.name,
+                generation_stats={
+                    'input_tokens': input_length,
+                    'output_tokens': total_tokens,
+                    'total_tokens': input_length + total_tokens,
+                    'tokens_per_second': tokens_per_second,
+                    'generation_time': generation_time,
+                    'memory_usage_mb': self._get_memory_usage()
+                },
+                latency=0,  # 나중에 설정됨
+                timestamp=datetime.now(),
+                params=params
+            )
 
-        # 별도 스레드에서 실행
+        # 스레드풀에서 동기 함수 실행
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=1) as executor:
-            generated_text, stats = await loop.run_in_executor(executor, generate_sync)
+            return await loop.run_in_executor(executor, generate_sync)
 
-        latency = time.time() - start_time
-
-        return ModelResponse(
-            content=generated_text,
-            model=self.config.name,
-            generation_stats=stats,
-            latency=latency,
-            timestamp=datetime.now(),
-            params=params,
-            metadata={'backend': 'transformers'}
-        )
-
-class VLLMInterface(BaseModelInterface):
-    """vLLM 인터페이스 (고성능 추론)"""
-
-    def _initialize_model(self):
-        """vLLM 모델 초기화"""
-        try:
-            from vllm import LLM, SamplingParams
-
-            self.logger.info(f"Loading vLLM model: {self.config.model_path}")
-
-            # vLLM 설정
-            llm_kwargs = {
-                'model': self.config.model_path,
-                'tensor_parallel_size': self.config.tensor_parallel_size,
-                'dtype': self.config.dtype,
-                'gpu_memory_utilization': self.config.gpu_memory_utilization,
-                'trust_remote_code': self.config.trust_remote_code,
-            }
-
-            if self.config.max_model_len:
-                llm_kwargs['max_model_len'] = self.config.max_model_len
-
-            self.model = LLM(**llm_kwargs)
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-            self.logger.info(f"vLLM model loaded successfully")
-
-        except ImportError:
-            self.logger.error("vLLM not installed. Install with: pip install vllm")
-            raise
-        except Exception as e:
-            self.logger.error(f"Failed to initialize vLLM model: {e}")
-            raise
-
-    async def generate_async(self, prompt: str, params: InferenceParams) -> ModelResponse:
-        """vLLM을 통한 비동기 텍스트 생성"""
-        from vllm import SamplingParams
-
-        start_time = time.time()
-
-        def generate_sync():
-            sampling_params = SamplingParams(
-                temperature=params.temperature,
-                top_p=params.top_p,
-                top_k=params.top_k,
-                max_tokens=params.max_new_tokens,
-                repetition_penalty=params.repetition_penalty,
-                length_penalty=params.length_penalty,
-                use_beam_search=params.num_beams > 1,
-                best_of=params.num_beams if params.num_beams > 1 else 1,
-                n=params.num_return_sequences,
-                stop=None,
-            )
-
-            generation_start = time.time()
-            outputs = self.model.generate([prompt], sampling_params)
-            generation_time = time.time() - generation_start
-
-            output = outputs[0]
-            generated_text = output.outputs[0].text
-
-            # 통계 계산
-            input_tokens = len(output.prompt_token_ids)
-            output_tokens = len(output.outputs[0].token_ids)
-            total_tokens = input_tokens + output_tokens
-            tokens_per_second = output_tokens / generation_time if generation_time > 0 else 0
-
-            return generated_text, {
-                'input_tokens': input_tokens,
-                'output_tokens': output_tokens,
-                'total_tokens': total_tokens,
-                'tokens_per_second': tokens_per_second,
-                'generation_time': generation_time,
-                'memory_usage_mb': self._get_memory_usage(),
-                'finish_reason': output.outputs[0].finish_reason
-            }
-
-        # 별도 스레드에서 실행
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            generated_text, stats = await loop.run_in_executor(executor, generate_sync)
-
-        latency = time.time() - start_time
-
-        return ModelResponse(
-            content=generated_text,
-            model=self.config.name,
-            generation_stats=stats,
-            latency=latency,
-            timestamp=datetime.now(),
-            params=params,
-            metadata={'backend': 'vllm'}
-        )
-
-class OllamaInterface(BaseModelInterface):
-    """Ollama 인터페이스"""
-
-    def _initialize_model(self):
-        """Ollama 클라이언트 초기화"""
-        try:
-            import ollama
-
-            self.client = ollama.Client(host=self.config.base_url)
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-            # 모델 존재 확인
-            try:
-                self.client.show(self.config.model_path)
-                self.logger.info(f"Ollama model {self.config.model_path} is available")
-            except:
-                self.logger.info(f"Pulling Ollama model: {self.config.model_path}")
-                self.client.pull(self.config.model_path)
-
-        except ImportError:
-            self.logger.error("Ollama not installed. Install with: pip install ollama")
-            raise
-        except Exception as e:
-            self.logger.error(f"Failed to initialize Ollama client: {e}")
-            raise
-
-    async def generate_async(self, prompt: str, params: InferenceParams) -> ModelResponse:
-        """Ollama를 통한 비동기 텍스트 생성"""
-        start_time = time.time()
-
-        def generate_sync():
-            generation_start = time.time()
-
-            response = self.client.generate(
-                model=self.config.model_path,
-                prompt=prompt,
-                options={
-                    'temperature': params.temperature,
-                    'top_p': params.top_p,
-                    'top_k': params.top_k,
-                    'repeat_penalty': params.repetition_penalty,
-                    'num_predict': params.max_new_tokens,
-                }
-            )
-
-            generation_time = time.time() - generation_start
-            generated_text = response['response']
-
-            # 통계 계산 (Ollama 응답에서 제공되는 정보 활용)
-            eval_count = response.get('eval_count', 0)
-            eval_duration = response.get('eval_duration', 0) / 1e9  # 나노초를 초로 변환
-            tokens_per_second = eval_count / eval_duration if eval_duration > 0 else 0
-
-            return generated_text, {
-                'input_tokens': response.get('prompt_eval_count', 0),
-                'output_tokens': eval_count,
-                'total_tokens': response.get('prompt_eval_count', 0) + eval_count,
-                'tokens_per_second': tokens_per_second,
-                'generation_time': generation_time,
-                'memory_usage_mb': self._get_memory_usage(),
-                'load_duration': response.get('load_duration', 0) / 1e9,
-                'eval_duration': eval_duration
-            }
-
-        # 별도 스레드에서 실행
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            generated_text, stats = await loop.run_in_executor(executor, generate_sync)
-
-        latency = time.time() - start_time
-
-        return ModelResponse(
-            content=generated_text,
-            model=self.config.name,
-            generation_stats=stats,
-            latency=latency,
-            timestamp=datetime.now(),
-            params=params,
-            metadata={'backend': 'ollama'}
-        )
-
-class TGIInterface(BaseModelInterface):
-    """Text Generation Inference (TGI) 인터페이스"""
-
-    def _initialize_model(self):
-        """TGI 클라이언트 초기화"""
-        try:
-            from text_generation import AsyncClient
-
-            self.client = AsyncClient(
-                base_url=self.config.base_url,
-                timeout=60
-            )
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-            self.logger.info(f"TGI client initialized for: {self.config.base_url}")
-
-        except ImportError:
-            self.logger.error("text-generation not installed. Install with: pip install text-generation")
-            raise
-        except Exception as e:
-            self.logger.error(f"Failed to initialize TGI client: {e}")
-            raise
-
-    async def generate_async(self, prompt: str, params: InferenceParams) -> ModelResponse:
-        """TGI를 통한 비동기 텍스트 생성"""
-        start_time = time.time()
-
-        try:
-            generation_start = time.time()
-
-            response = await self.client.generate(
-                prompt=prompt,
-                max_new_tokens=params.max_new_tokens,
-                temperature=params.temperature,
-                top_p=params.top_p,
-                top_k=params.top_k,
-                repetition_penalty=params.repetition_penalty,
-                do_sample=params.do_sample,
-                return_full_text=False,
-                details=True
-            )
-
-            generation_time = time.time() - generation_start
-            generated_text = response.generated_text
-
-            # TGI 상세 정보에서 통계 추출
-            details = response.details
-            tokens_per_second = details.generated_tokens / generation_time if generation_time > 0 else 0
-
-            stats = {
-                'input_tokens': details.prefill[0].id if details.prefill else 0,
-                'output_tokens': details.generated_tokens,
-                'total_tokens': (details.prefill[0].id if details.prefill else 0) + details.generated_tokens,
-                'tokens_per_second': tokens_per_second,
-                'generation_time': generation_time,
-                'memory_usage_mb': self._get_memory_usage(),
-                'finish_reason': details.finish_reason.name if details.finish_reason else 'unknown'
-            }
-
-        except Exception as e:
-            self.logger.error(f"TGI generation failed: {e}")
-            raise
-
-        latency = time.time() - start_time
-
-        return ModelResponse(
-            content=generated_text,
-            model=self.config.name,
-            generation_stats=stats,
-            latency=latency,
-            timestamp=datetime.now(),
-            params=params,
-            metadata={'backend': 'tgi'}
-        )
-
-class PerformanceMonitor:
-    """성능 모니터링 클래스"""
+class MemoryMonitor:
+    """메모리 모니터링 클래스"""
 
     def __init__(self):
-        self.is_monitoring = False
-        self.metrics = []
-        self.monitor_thread = None
+        self.peak_memory = 0
+        self.lock = threading.Lock()
 
-    def start_monitoring(self):
-        """모니터링 시작"""
-        self.is_monitoring = True
-        self.metrics = []
-        self.monitor_thread = threading.Thread(target=self._monitor_loop)
-        self.monitor_thread.start()
+    def check_available_memory(self, config: ModelConfig) -> bool:
+        """모델 로딩 전 메모리 체크"""
+        try:
+            if config.device == "cuda" and torch.cuda.is_available():
+                available_memory = torch.cuda.get_device_properties(0).total_memory
+                # 간단한 메모리 추정
+                estimated_usage = self._estimate_memory_usage(config)
+                return estimated_usage < available_memory * 0.9
+            return True
+        except:
+            return True
 
-    def stop_monitoring(self) -> PerformanceMetrics:
-        """모니터링 종료 및 결과 반환"""
-        self.is_monitoring = False
-        if self.monitor_thread:
-            self.monitor_thread.join()
+    def _estimate_memory_usage(self, config: ModelConfig) -> int:
+        """메모리 사용량 추정 (바이트)"""
+        # 모델 크기 추정 (매우 간단한 버전)
+        size_estimates = {
+            '7b': 14 * 1024**3,   # 14GB
+            '13b': 26 * 1024**3,  # 26GB
+            '30b': 60 * 1024**3,  # 60GB
+            '70b': 140 * 1024**3, # 140GB
+        }
 
-        if not self.metrics:
-            return PerformanceMetrics(0, 0, 0, 0, 0, 0, 0, 0)
+        base_size = 14 * 1024**3  # 기본 7B 크기
+        path_lower = config.model_path.lower()
 
-        # 통계 계산
-        latencies = [m['latency'] for m in self.metrics]
-        memory_usages = [m['memory'] for m in self.metrics]
-        cpu_usages = [m['cpu'] for m in self.metrics]
-        gpu_usages = [m['gpu'] for m in self.metrics]
-
-        return PerformanceMetrics(
-            tokens_per_second=sum(m.get('tokens_per_second', 0) for m in self.metrics) / len(self.metrics),
-            memory_usage_mb=max(memory_usages),
-            gpu_utilization=sum(gpu_usages) / len(gpu_usages),
-            cpu_utilization=sum(cpu_usages) / len(cpu_usages),
-            latency_p50=sorted(latencies)[len(latencies)//2],
-            latency_p95=sorted(latencies)[int(len(latencies)*0.95)],
-            latency_p99=sorted(latencies)[int(len(latencies)*0.99)],
-            throughput=len(self.metrics) / (self.metrics[-1]['timestamp'] - self.metrics[0]['timestamp']) if len(self.metrics) > 1 else 0
-        )
-
-    def _monitor_loop(self):
-        """모니터링 루프"""
-        while self.is_monitoring:
-            try:
-                # CPU 사용률
-                cpu_percent = psutil.cpu_percent(interval=0.1)
-
-                # 메모리 사용량
-                memory_info = psutil.virtual_memory()
-                memory_mb = memory_info.used / 1024 / 1024
-
-                # GPU 사용률 (가능한 경우)
-                gpu_percent = 0
-                if torch.cuda.is_available():
-                    try:
-                        import pynvml
-                        pynvml.nvmlInit()
-                        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-                        utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                        gpu_percent = utilization.gpu
-                    except:
-                        gpu_percent = 0
-
-                self.metrics.append({
-                    'timestamp': time.time(),
-                    'cpu': cpu_percent,
-                    'memory': memory_mb,
-                    'gpu': gpu_percent,
-                    'latency': 0  # 실제 요청에서 업데이트됨
-                })
-
-                time.sleep(0.5)  # 0.5초마다 모니터링
-
-            except Exception as e:
-                logging.error(f"Monitoring error: {e}")
+        for size, memory in size_estimates.items():
+            if size in path_lower:
+                base_size = memory
                 break
 
-class ModelManager:
-    """모델 관리 클래스"""
+        # 양자화 적용
+        if config.load_in_4bit:
+            return int(base_size * 0.5)
+        elif config.load_in_8bit:
+            return int(base_size * 0.75)
+        else:
+            return base_size
+
+    def check_memory_before_generation(self):
+        """생성 전 메모리 체크"""
+        try:
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated()
+                reserved = torch.cuda.memory_reserved()
+                total = torch.cuda.get_device_properties(0).total_memory
+
+                if allocated / total > 0.95:
+                    torch.cuda.empty_cache()
+
+                if reserved / total > 0.98:
+                    raise RuntimeError("GPU memory usage too high")
+        except Exception as e:
+            logging.warning(f"Memory check failed: {e}")
+
+    def get_current_memory_usage(self) -> float:
+        """현재 메모리 사용량 (MB)"""
+        try:
+            if torch.cuda.is_available():
+                return torch.cuda.memory_allocated() / 1024**2
+            else:
+                process = psutil.Process()
+                return process.memory_info().rss / 1024**2
+        except:
+            return 0.0
+
+    def get_peak_memory_usage(self) -> float:
+        """피크 메모리 사용량 업데이트 및 반환"""
+        current = self.get_current_memory_usage()
+        with self.lock:
+            self.peak_memory = max(self.peak_memory, current)
+            return self.peak_memory
+
+class RequestLimiter:
+    """요청 제한기"""
+
+    def __init__(self, max_concurrent: int = 4):
+        self.max_concurrent = max_concurrent
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def __aenter__(self):
+        await self.semaphore.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        self.semaphore.release()
+
+class HealthChecker:
+    """시스템 헬스 체크"""
+
+    def __init__(self):
+        self.last_check = 0
+        self.check_interval = 60  # 1분
+        self.status = {}
+
+    def check_system_health(self) -> bool:
+        """시스템 헬스 체크"""
+        current_time = time.time()
+
+        # 캐시된 결과 사용 (1분 이내)
+        if current_time - self.last_check < self.check_interval:
+            return self.status.get('healthy', True)
+
+        try:
+            # CPU 사용률 체크
+            cpu_percent = psutil.cpu_percent(interval=1)
+
+            # 메모리 사용률 체크
+            memory = psutil.virtual_memory()
+
+            # 디스크 사용률 체크
+            disk = psutil.disk_usage('/')
+
+            # 건강성 판단
+            healthy = (
+                cpu_percent < 90 and
+                memory.percent < 95 and
+                disk.percent < 95
+            )
+
+            self.status = {
+                'healthy': healthy,
+                'cpu_percent': cpu_percent,
+                'memory_percent': memory.percent,
+                'disk_percent': disk.percent,
+                'last_check': current_time
+            }
+
+            self.last_check = current_time
+            return healthy
+
+        except Exception as e:
+            logging.warning(f"Health check failed: {e}")
+            return True  # 체크 실패 시 통과로 처리
+
+    def get_status(self) -> Dict[str, Any]:
+        """헬스 상태 반환"""
+        return self.status.copy()
+
+class SafeModelManager:
+    """안전한 모델 매니저"""
 
     def __init__(self, optimization_config: OptimizationConfig):
         self.optimization_config = optimization_config
-        self.interfaces = {}
-        self.model_configs = {}
+        self.models: Dict[str, SafeModelInterface] = {}
+        self.model_locks: Dict[str, threading.RLock] = {}
+        self.logger = logging.getLogger(__name__)
 
-    def register_model(self, name: str, config: ModelConfig):
-        """모델 등록"""
-        self.model_configs[name] = config
+        # 전역 락
+        self._global_lock = threading.RLock()
 
-        # 모델 타입에 따라 적절한 인터페이스 생성
-        if config.model_type == "transformers":
-            interface = TransformersInterface(config, self.optimization_config)
-        elif config.model_type == "vllm":
-            interface = VLLMInterface(config, self.optimization_config)
-        elif config.model_type == "ollama":
-            interface = OllamaInterface(config, self.optimization_config)
-        elif config.model_type == "tgi":
-            interface = TGIInterface(config, self.optimization_config)
-        else:
-            raise ValueError(f"Unsupported model type: {config.model_type}")
+    def register_model(self, name: str, config: ModelConfig, force_reload: bool = False):
+        """안전한 모델 등록"""
+        with self._global_lock:
+            # 기존 모델 정리 (필요한 경우)
+            if name in self.models and force_reload:
+                self.unregister_model(name)
 
-        self.interfaces[name] = interface
-        logging.info(f"Model registered: {name} ({config.model_type})")
+            if name in self.models:
+                self.logger.info(f"Model {name} already registered")
+                return
 
-    def get_interface(self, model_name: str) -> BaseModelInterface:
-        """모델 인터페이스 반환"""
-        if model_name not in self.interfaces:
-            raise ValueError(f"Model {model_name} not registered")
-        return self.interfaces[model_name]
+            # 모델별 락 생성
+            self.model_locks[name] = threading.RLock()
+
+            try:
+                # 모델 타입에 따른 인터페이스 선택
+                if config.model_type == "transformers":
+                    interface = SafeTransformersInterface(config, self.optimization_config)
+                else:
+                    # 다른 타입들도 SafeTransformersInterface로 처리 (일단)
+                    # 추후 vLLM, Ollama 등의 안전한 구현 추가
+                    interface = SafeTransformersInterface(config, self.optimization_config)
+
+                self.models[name] = interface
+                self.logger.info(f"Model {name} registered successfully")
+
+            except Exception as e:
+                self.logger.error(f"Failed to register model {name}: {e}")
+                # 실패 시 정리
+                if name in self.model_locks:
+                    del self.model_locks[name]
+                raise
+
+    def unregister_model(self, name: str):
+        """모델 등록 해제"""
+        with self._global_lock:
+            if name not in self.models:
+                return
+
+            with self.model_locks.get(name, threading.RLock()):
+                try:
+                    # 모델 정리
+                    model = self.models[name]
+                    model._cleanup()
+
+                    # 딕셔너리에서 제거
+                    del self.models[name]
+                    if name in self.model_locks:
+                        del self.model_locks[name]
+
+                    self.logger.info(f"Model {name} unregistered")
+
+                except Exception as e:
+                    self.logger.error(f"Error unregistering model {name}: {e}")
+
+    def get_model(self, name: str) -> Optional[SafeModelInterface]:
+        """안전한 모델 인터페이스 반환"""
+        with self._global_lock:
+            if name not in self.models:
+                self.logger.warning(f"Model {name} not found")
+                return None
+
+            return self.models[name]
 
     def list_models(self) -> List[str]:
-        """등록된 모델 목록 반환"""
-        return list(self.interfaces.keys())
+        """등록된 모델 목록"""
+        with self._global_lock:
+            return list(self.models.keys())
 
-    def get_model_info_all(self) -> Dict[str, Dict[str, Any]]:
-        """모든 모델 정보 반환"""
-        return {
-            name: interface.get_model_info()
-            for name, interface in self.interfaces.items()
-        }
+    def get_models_info(self) -> Dict[str, Dict[str, Any]]:
+        """모든 모델 정보"""
+        with self._global_lock:
+            return {
+                name: model.get_model_info()
+                for name, model in self.models.items()
+            }
 
-    async def benchmark_models(self, model_names: List[str], test_prompt: str,
-                             params: InferenceParams, iterations: int = 5) -> Dict[str, PerformanceMetrics]:
-        """모델 벤치마크 실행"""
+    async def generate_batch_all_models(self, prompts: List[str],
+                                       params: InferenceParams) -> Dict[str, BatchResponse]:
+        """모든 모델에서 배치 생성 (비교용)"""
         results = {}
 
-        for model_name in model_names:
-            if model_name not in self.interfaces:
-                continue
-
-            interface = self.interfaces[model_name]
-            latencies = []
-            tokens_per_second_list = []
-
-            logging.info(f"Benchmarking {model_name}...")
-
-            for i in range(iterations):
-                try:
-                    response = await interface.generate_async(test_prompt, params)
-                    latencies.append(response.latency)
-                    tokens_per_second_list.append(response.generation_stats.get('tokens_per_second', 0))
-                except Exception as e:
-                    logging.error(f"Benchmark failed for {model_name} iteration {i}: {e}")
-
-            if latencies:
-                # 성능 메트릭 계산
-                avg_latency = sum(latencies) / len(latencies)
-                avg_tokens_per_second = sum(tokens_per_second_list) / len(tokens_per_second_list)
-
-                results[model_name] = PerformanceMetrics(
-                    tokens_per_second=avg_tokens_per_second,
-                    memory_usage_mb=interface._get_memory_usage(),
-                    gpu_utilization=0,  # 실제 구현에서는 GPU 모니터링 추가
-                    cpu_utilization=0,
-                    latency_p50=sorted(latencies)[len(latencies)//2],
-                    latency_p95=sorted(latencies)[int(len(latencies)*0.95)],
-                    latency_p99=sorted(latencies)[int(len(latencies)*0.99)],
-                    throughput=1.0 / avg_latency if avg_latency > 0 else 0
-                )
+        for name, model in self.models.items():
+            try:
+                self.logger.info(f"Running batch generation on {name}")
+                result = await model.generate_batch_async(prompts, params)
+                results[name] = result
+            except Exception as e:
+                self.logger.error(f"Batch generation failed for {name}: {e}")
+                results[name] = BatchResponse([], 0, 0, 0, 0, 0, 0, len(prompts))
 
         return results
 
-
-# model_interface.py 추가 수정사항
-
-import signal
-import os
-import sys
-from contextlib import contextmanager
-
-
-@contextmanager
-def signal_safe_context():
-    """신호 처리 안전 컨텍스트"""
-    # 메인 스레드에서만 신호 처리 비활성화
-    if threading.current_thread() is threading.main_thread():
-        old_handler = None
-        try:
-            # SIGALRM 핸들러 임시 비활성화
-            old_handler = signal.signal(signal.SIGALRM, signal.SIG_DFL)
-            yield
-        finally:
-            if old_handler is not None:
-                signal.signal(signal.SIGALRM, old_handler)
-    else:
-        yield
-
-
-class SignalSafeTransformersInterface(ThreadSafeTransformersInterface):
-    """신호 안전 Transformers 인터페이스"""
-
-    def _initialize_model(self):
-        """신호 안전 모델 초기화"""
-        try:
-            with signal_safe_context():
-                super()._initialize_model()
-        except Exception as e:
-            if "signal only works in main thread" in str(e):
-                self.logger.warning("Signal handling disabled for thread safety")
-                # trust_remote_code 검증 비활성화
-                os.environ['HF_TRUST_REMOTE_CODE'] = 'false'
-                super()._initialize_model()
-            else:
-                raise
-
-    def _load_model_with_fallback(self):
-        """대체 방법으로 모델 로딩"""
-        try:
-            # 1차 시도: 일반 로딩
-            return self._load_model_primary()
-        except Exception as e:
-            self.logger.warning(f"Primary loading failed: {e}")
-
-            try:
-                # 2차 시도: 신뢰 코드 비활성화
-                return self._load_model_no_trust()
-            except Exception as e2:
-                self.logger.warning(f"No-trust loading failed: {e2}")
-
-                # 3차 시도: CPU 전용
-                return self._load_model_cpu_only()
-
-    def _load_model_primary(self):
-        """기본 모델 로딩"""
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-
-        model_kwargs = {
-            'trust_remote_code': self.config.trust_remote_code,
-            'torch_dtype': getattr(torch, self.config.dtype),
-            'device_map': self.config.device if self.config.device != "auto" else "auto",
-        }
-
-        # 양자화 설정
-        if self.config.load_in_4bit or self.config.load_in_8bit:
-            model_kwargs['quantization_config'] = self._get_quantization_config()
-
-        return AutoModelForCausalLM.from_pretrained(
-            self.config.model_path, **model_kwargs
-        )
-
-    def _load_model_no_trust(self):
-        """신뢰 코드 없이 모델 로딩"""
-        from transformers import AutoModelForCausalLM
-
-        model_kwargs = {
-            'trust_remote_code': False,  # 강제 비활성화
-            'torch_dtype': getattr(torch, self.config.dtype),
-            'device_map': self.config.device if self.config.device != "auto" else "auto",
-        }
-
-        return AutoModelForCausalLM.from_pretrained(
-            self.config.model_path, **model_kwargs
-        )
-
-    def _load_model_cpu_only(self):
-        """CPU 전용 모델 로딩"""
-        from transformers import AutoModelForCausalLM
-
-        model_kwargs = {
-            'trust_remote_code': False,
-            'torch_dtype': torch.float32,  # CPU는 float32
-            'device_map': 'cpu',
-        }
-
-        self.logger.info("Falling back to CPU-only mode")
-        return AutoModelForCausalLM.from_pretrained(
-            self.config.model_path, **model_kwargs
-        )
-
-
-class RobustModelManager(ModelManager):
-    """강화된 모델 매니저"""
-
-    def __init__(self, optimization_config: OptimizationConfig):
-        super().__init__(optimization_config)
-        self.error_handler = ErrorHandler(logging.getLogger(__name__))
-        self.model_locks = {}  # 모델별 락
-
-    def register_model(self, name: str, config: ModelConfig):
-        """강화된 모델 등록"""
-        if name in self.model_locks:
-            return  # 이미 등록됨
-
-        self.model_locks[name] = threading.Lock()
-
-        try:
-            # 모델 타입에 따른 안전한 인터페이스 선택
-            if config.model_type == "transformers":
-                if threading.current_thread() is threading.main_thread():
-                    interface = SignalSafeTransformersInterface(config, self.optimization_config)
-                else:
-                    interface = ThreadSafeTransformersInterface(config, self.optimization_config)
-            elif config.model_type == "vllm":
-                interface = VLLMInterface(config, self.optimization_config)
-            elif config.model_type == "ollama":
-                interface = OllamaInterface(config, self.optimization_config)
-            elif config.model_type == "tgi":
-                interface = TGIInterface(config, self.optimization_config)
-            else:
-                raise ValueError(f"Unsupported model type: {config.model_type}")
-
-            self.interfaces[name] = interface
-            logging.info(f"Model registered safely: {name} ({config.model_type})")
-
-        except Exception as e:
-            self.error_handler.handle_model_loading_error(name, e)
-            raise
-
-    def get_interface(self, model_name: str) -> BaseModelInterface:
-        """스레드 안전 인터페이스 반환"""
-        if model_name not in self.interfaces:
-            raise ValueError(f"Model {model_name} not registered")
-
-        # 모델별 락 사용
-        with self.model_locks.get(model_name, threading.Lock()):
-            return self.interfaces[model_name]
-
-
-# 환경 변수 설정으로 일반적인 문제 해결
-def setup_safe_environment():
-    """안전한 환경 설정"""
-    # HuggingFace 관련
-    os.environ.setdefault('HF_HOME', os.path.expanduser('~/.cache/huggingface'))
-    os.environ.setdefault('TRANSFORMERS_CACHE', os.path.expanduser('~/.cache/huggingface/transformers'))
-
-    # PyTorch 관련
-    os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:512')
-
-    # 신호 처리 관련
-    if 'TOKENIZERS_PARALLELISM' not in os.environ:
-        os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # 토크나이저 병렬 처리 비활성화
-
-    # 멀티프로세싱 관련
-    if sys.platform.startswith('linux'):
-        os.environ.setdefault('OMP_NUM_THREADS', '1')
-
-
-# 모듈 초기화 시 안전한 환경 설정
-setup_safe_environment()
-
+    def cleanup_all(self):
+        """모든 모델 정리"""
+        with self._global_lock:
+            model_names = list(self.models.keys())
+            for name in model_names:
+                self.unregister_model(name)
 
 # 사용 예시
 if __name__ == "__main__":
-    from config import ConfigManager, OptimizationConfig
+    import asyncio
+    from config import ModelConfig, OptimizationConfig, InferenceParams
 
-    # 설정 로드
-    config_manager = ConfigManager()
-    optimization_config = config_manager.optimization_config
+    async def test_safe_interface():
+        print("=== 안전한 모델 인터페이스 테스트 ===")
 
-    # 모델 매니저 생성
-    model_manager = ModelManager(optimization_config)
+        # 설정
+        model_config = ModelConfig(
+            name="test-model",
+            model_path="microsoft/DialoGPT-medium",  # 작은 테스트 모델
+            model_type="transformers",
+            device="auto",
+            dtype="float16",
+            load_in_4bit=True,
+            trust_remote_code=False
+        )
 
-    # 테스트용 로컬 모델 등록
-    test_config = ModelConfig(
-        name="test-model",
-        model_path="microsoft/DialoGPT-medium",
-        model_type="transformers",
-        device="auto",
-        dtype="float16"
-    )
+        optimization_config = OptimizationConfig(
+            enable_torch_compile=False,
+            enable_bettertransformer=False,
+            auto_cleanup=True
+        )
 
-    async def test_model_interface():
         try:
-            model_manager.register_model("test", test_config)
-            interface = model_manager.get_interface("test")
+            # 모델 매니저 생성
+            manager = SafeModelManager(optimization_config)
 
-            # 모델 정보 출력
-            model_info = interface.get_model_info()
-            print("모델 정보:")
-            for key, value in model_info.items():
-                print(f"  {key}: {value}")
+            # 모델 등록
+            manager.register_model("test", model_config)
+            print("✅ 모델 등록 완료")
 
-            # 테스트 생성
-            params = InferenceParams(
-                temperature=0.7,
-                max_new_tokens=50,
-                top_p=0.9
-            )
+            # 모델 정보 확인
+            model = manager.get_model("test")
+            if model:
+                info = model.get_model_info()
+                print(f"📋 모델 정보: {info}")
 
-            response = await interface.generate_async("안녕하세요!", params)
-            print(f"\n생성 결과:")
-            print(f"응답: {response.content}")
-            print(f"지연시간: {response.latency:.3f}초")
-            print(f"토큰/초: {response.generation_stats.get('tokens_per_second', 0):.1f}")
+                # 단일 생성 테스트
+                params = InferenceParams(
+                    temperature=0.7,
+                    max_new_tokens=50,
+                    top_p=0.9
+                )
+
+                response = await model.generate_async("안녕하세요!", params)
+                print(f"🔤 생성 결과: {response.content}")
+                print(f"⏱️ 지연시간: {response.latency:.2f}초")
+
+                # 배치 생성 테스트
+                prompts = ["안녕하세요!", "오늘 날씨는?", "AI에 대해 설명해주세요."]
+                batch_response = await model.generate_batch_async(prompts, params)
+                print(f"📦 배치 결과: {batch_response.success_count}개 성공, {batch_response.error_count}개 실패")
+                print(f"🚀 처리 속도: {batch_response.avg_tokens_per_second:.1f} tokens/sec")
+
+            print("✅ 모든 테스트 완료")
 
         except Exception as e:
-            print(f"테스트 실패: {e}")
+            print(f"❌ 테스트 실패: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # 정리
+            if 'manager' in locals():
+                manager.cleanup_all()
+
+            # 전역 리소스 정리
+            from config import cleanup_resources
+            cleanup_resources()
 
     # 테스트 실행
-    print("=== 오픈소스 LLM 인터페이스 테스트 ===")
-    asyncio.run(test_model_interface())
-
-
-class StreamingInterface(BaseModelInterface):
-    """스트리밍 지원 인터페이스"""
-
-    async def generate_stream(self, prompt: str, params: InferenceParams) -> AsyncIterator[str]:
-        """스트리밍 생성"""
-        # 구현 예정
-        yield "스트리밍 기능은 v2.0에서 구현 예정입니다."
-
-
-class AdvancedVLLMInterface(VLLMInterface):
-    """고급 vLLM 기능"""
-
-    def enable_speculative_decoding(self, draft_model: str):
-        """추측 디코딩 활성화"""
-        # 구현 예정
-        pass
-
-    def enable_prefix_caching(self):
-        """프리픽스 캐싱 활성화"""
-        # 구현 예정
-        pass
+    asyncio.run(test_safe_interface())
