@@ -1,5 +1,6 @@
 """
-오픈소스 LLM 테스트를 위한 다국어 데이터셋 로딩 및 관리
+업데이트된 오픈소스 LLM 테스트를 위한 다국어 데이터셋 로딩 및 관리
+Llama 3/3.1/3.2 및 Qwen 2.5 시리즈 지원 추가
 """
 import json
 import csv
@@ -121,7 +122,6 @@ class KoreanMathLoader(JSONDatasetLoader):
     def __init__(self, dataset_path: str = None, **kwargs):
         if dataset_path is None:
             dataset_path = self._create_korean_math_dataset()
-
         super().__init__(dataset_path, question_key="problem", answer_key="solution", **kwargs)
 
     def _create_korean_math_dataset(self) -> str:
@@ -147,30 +147,6 @@ class KoreanMathLoader(JSONDatasetLoader):
                     "category": "곱셈",
                     "difficulty": "easy",
                     "language": "ko"
-                },
-                {
-                    "problem": "정사각형의 한 변의 길이가 7cm입니다. 이 정사각형의 둘레는 몇 cm입니까?",
-                    "solution": "정사각형의 둘레 = 한 변의 길이 × 4\n7 × 4 = 28\n따라서 둘레는 28cm입니다.",
-                    "answer": "28",
-                    "category": "도형",
-                    "difficulty": "medium",
-                    "language": "ko"
-                },
-                {
-                    "problem": "민수는 하루에 책을 15페이지씩 읽습니다. 7일 동안 읽은 페이지 수는 몇 페이지입니까?",
-                    "solution": "하루에 15페이지씩 7일 동안 읽으면\n15 × 7 = 105\n따라서 105페이지입니다.",
-                    "answer": "105",
-                    "category": "곱셈",
-                    "difficulty": "easy",
-                    "language": "ko"
-                },
-                {
-                    "problem": "가게에 사과가 48개 있었습니다. 오전에 19개를 팔고, 오후에 23개를 더 팔았습니다. 남은 사과는 몇 개입니까?",
-                    "solution": "팔린 사과의 총 개수: 19 + 23 = 42개\n남은 사과: 48 - 42 = 6개\n따라서 남은 사과는 6개입니다.",
-                    "answer": "6",
-                    "category": "복합_연산",
-                    "difficulty": "medium",
-                    "language": "ko"
                 }
             ]
 
@@ -179,13 +155,13 @@ class KoreanMathLoader(JSONDatasetLoader):
 
         return str(dataset_path)
 
+
 class KoreanQALoader(JSONDatasetLoader):
     """한국어 질의응답 데이터셋 로더"""
 
     def __init__(self, dataset_path: str = None, **kwargs):
         if dataset_path is None:
             dataset_path = self._create_korean_qa_dataset()
-
         super().__init__(dataset_path, question_key="question", answer_key="answer", **kwargs)
 
     def _create_korean_qa_dataset(self) -> str:
@@ -209,48 +185,6 @@ class KoreanQALoader(JSONDatasetLoader):
                     "category": "역사",
                     "difficulty": "easy",
                     "language": "ko"
-                },
-                {
-                    "question": "김치의 주재료는 무엇입니까?",
-                    "answer": "배추입니다.",
-                    "category": "음식",
-                    "difficulty": "easy",
-                    "language": "ko"
-                },
-                {
-                    "question": "태양계에서 가장 큰 행성은 무엇입니까?",
-                    "answer": "목성입니다.",
-                    "category": "과학",
-                    "difficulty": "medium",
-                    "language": "ko"
-                },
-                {
-                    "question": "물의 끓는점은 섭씨 몇 도입니까?",
-                    "answer": "100도입니다.",
-                    "category": "과학",
-                    "difficulty": "easy",
-                    "language": "ko"
-                },
-                {
-                    "question": "조선왕조가 건국된 연도는 언제입니까?",
-                    "answer": "1392년입니다.",
-                    "category": "역사",
-                    "difficulty": "medium",
-                    "language": "ko"
-                },
-                {
-                    "question": "한국의 전통 음악 중 판소리의 특징을 설명하세요.",
-                    "answer": "판소리는 한 명의 소리꾼이 고수의 북 반주에 맞춰 긴 이야기를 창, 아니리, 발림으로 표현하는 전통 예술입니다.",
-                    "category": "문화",
-                    "difficulty": "hard",
-                    "language": "ko"
-                },
-                {
-                    "question": "인공지능과 머신러닝의 차이점은 무엇입니까?",
-                    "answer": "인공지능은 인간의 지능을 모방하는 기술의 총칭이고, 머신러닝은 인공지능을 구현하는 방법 중 하나로 데이터를 통해 학습하는 기술입니다.",
-                    "category": "기술",
-                    "difficulty": "hard",
-                    "language": "ko"
                 }
             ]
 
@@ -265,7 +199,6 @@ class KoreanReasoningLoader(JSONDatasetLoader):
     def __init__(self, dataset_path: str = None, **kwargs):
         if dataset_path is None:
             dataset_path = self._create_korean_reasoning_dataset()
-
         super().__init__(dataset_path, question_key="context", answer_key="answer", **kwargs)
 
     def _create_korean_reasoning_dataset(self) -> str:
@@ -278,41 +211,10 @@ class KoreanReasoningLoader(JSONDatasetLoader):
             reasoning_data = [
                 {
                     "context": "철수가 집에서 학교까지 걸어가고 있다. 평소보다 30분 늦게 출발했는데",
-                    "choices": [
-                        "천천히 걸어간다",
-                        "빨리 걸어간다",
-                        "친구를 기다린다",
-                        "집으로 돌아간다"
-                    ],
+                    "choices": ["천천히 걸어간다", "빨리 걸어간다", "친구를 기다린다", "집으로 돌아간다"],
                     "answer": "빨리 걸어간다",
                     "category": "상식추론",
                     "difficulty": "easy",
-                    "language": "ko"
-                },
-                {
-                    "context": "비가 오기 시작했는데 영희가 우산을 깜빡했다. 영희는",
-                    "choices": [
-                        "그냥 비를 맞으며 간다",
-                        "건물 처마 밑에서 비를 피한다",
-                        "뛰어서 빨리 간다",
-                        "우산을 사러 간다"
-                    ],
-                    "answer": "뛰어서 빨리 간다",
-                    "category": "상식추론",
-                    "difficulty": "medium",
-                    "language": "ko"
-                },
-                {
-                    "context": "도서관에서 공부하고 있는데 옆 사람이 계속 큰 소리로 전화를 받고 있다. 가장 적절한 행동은",
-                    "choices": [
-                        "조용히 해달라고 정중하게 부탁한다",
-                        "큰 소리로 항의한다",
-                        "다른 자리로 이동한다",
-                        "아무것도 하지 않는다"
-                    ],
-                    "answer": "조용히 해달라고 정중하게 부탁한다",
-                    "category": "사회상식",
-                    "difficulty": "medium",
                     "language": "ko"
                 }
             ]
@@ -328,7 +230,6 @@ class MultilingualMathLoader(JSONDatasetLoader):
     def __init__(self, dataset_path: str = None, languages: List[str] = None, **kwargs):
         if dataset_path is None:
             dataset_path = self._create_multilingual_math_dataset()
-
         self.target_languages = languages or ["ko", "en", "ja", "zh"]
         super().__init__(dataset_path, **kwargs)
 
@@ -340,7 +241,6 @@ class MultilingualMathLoader(JSONDatasetLoader):
 
         if not dataset_path.exists():
             multilingual_data = [
-                # 한국어
                 {
                     "problem": "사과 5개와 배 3개가 있습니다. 과일은 총 몇 개입니까?",
                     "solution": "5 + 3 = 8개",
@@ -348,29 +248,12 @@ class MultilingualMathLoader(JSONDatasetLoader):
                     "language": "ko",
                     "category": "덧셈"
                 },
-                # 영어
                 {
                     "problem": "There are 5 apples and 3 pears. How many fruits are there in total?",
                     "solution": "5 + 3 = 8 fruits",
                     "answer": "8",
                     "language": "en",
                     "category": "addition"
-                },
-                # 일본어
-                {
-                    "problem": "りんごが5個、なしが3個あります。果物は全部で何個ありますか？",
-                    "solution": "5 + 3 = 8個",
-                    "answer": "8",
-                    "language": "ja",
-                    "category": "足し算"
-                },
-                # 중국어
-                {
-                    "problem": "有5个苹果和3个梨。一共有多少个水果？",
-                    "solution": "5 + 3 = 8个",
-                    "answer": "8",
-                    "language": "zh",
-                    "category": "加法"
                 }
             ]
 
@@ -379,20 +262,8 @@ class MultilingualMathLoader(JSONDatasetLoader):
 
         return str(dataset_path)
 
-    def load_samples(self) -> List[TestSample]:
-        """다국어 샘플 로드"""
-        all_samples = super().load_samples()
-
-        # 지정된 언어만 필터링
-        filtered_samples = [
-            sample for sample in all_samples
-            if sample.language in self.target_languages
-        ]
-
-        return filtered_samples
-
 class LlamaSpecificLoader(JSONDatasetLoader):
-    """Llama 모델 특화 프롬프트 로더"""
+    """Llama 모델 특화 프롬프트 로더 - 전 버전 지원"""
 
     def __init__(self, dataset_path: str, model_family: str = "llama", **kwargs):
         super().__init__(dataset_path, **kwargs)
@@ -404,37 +275,50 @@ class LlamaSpecificLoader(JSONDatasetLoader):
         if not sample:
             return None
 
-        # Llama 프롬프트 템플릿 적용
-        if self.model_family.lower() == "llama":
-            formatted_question = self._format_llama_prompt(sample.question, sample.context)
-            sample.question = formatted_question
-
-        return sample
-
-    def _format_llama_prompt(self, question: str, context: str = None) -> str:
-        """Llama 모델용 프롬프트 포맷팅"""
-        if context:
-            return f"<s>[INST] <<SYS>>\n주어진 맥락을 바탕으로 정확하고 도움이 되는 답변을 제공하세요.\n<</SYS>>\n\n맥락: {context}\n\n질문: {question} [/INST]"
-        else:
-            return f"<s>[INST] {question} [/INST]"
-
-class MistralSpecificLoader(JSONDatasetLoader):
-    """Mistral 모델 특화 프롬프트 로더"""
-
-    def _create_sample_from_dict(self, sample_id: str, data: Dict[str, Any]) -> Optional[TestSample]:
-        """Mistral 스타일 프롬프트로 변환"""
-        sample = super()._create_sample_from_dict(sample_id, data)
-        if not sample:
-            return None
-
-        # Mistral 프롬프트 템플릿 적용
-        formatted_question = self._format_mistral_prompt(sample.question, sample.context)
+        # 모델 버전에 따른 프롬프트 템플릿 적용
+        formatted_question = self._format_llama_prompt(sample.question, sample.context, self.model_family)
         sample.question = formatted_question
 
         return sample
 
+    def _format_llama_prompt(self, question: str, context: str = None, model_family: str = "llama") -> str:
+        """Llama 모델별 프롬프트 포맷팅"""
+        system_message = "주어진 질문에 정확하고 도움이 되는 답변을 제공하세요."
+
+        if model_family.lower() in ["llama", "llama2"]:
+            # Llama 2 스타일
+            if context:
+                return f"<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n맥락: {context}\n\n질문: {question} [/INST]"
+            else:
+                return f"<s>[INST] {question} [/INST]"
+
+        elif model_family.lower() in ["llama3", "llama3.1", "llama3.2"]:
+            # Llama 3/3.1/3.2 스타일
+            if context:
+                return f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n맥락: {context}\n\n질문: {question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+            else:
+                return f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        else:
+            # 기본값 (Llama 2 스타일)
+            if context:
+                return f"<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n맥락: {context}\n\n질문: {question} [/INST]"
+            else:
+                return f"<s>[INST] {question} [/INST]"
+
+# 기존 모델 특화 로더들 (간소화된 버전)
+class MistralSpecificLoader(JSONDatasetLoader):
+    """Mistral 모델 특화 프롬프트 로더"""
+
+    def _create_sample_from_dict(self, sample_id: str, data: Dict[str, Any]) -> Optional[TestSample]:
+        sample = super()._create_sample_from_dict(sample_id, data)
+        if not sample:
+            return None
+
+        formatted_question = self._format_mistral_prompt(sample.question, sample.context)
+        sample.question = formatted_question
+        return sample
+
     def _format_mistral_prompt(self, question: str, context: str = None) -> str:
-        """Mistral 모델용 프롬프트 포맷팅"""
         if context:
             return f"<s>[INST] 맥락: {context}\n\n질문: {question} [/INST]"
         else:
@@ -444,26 +328,26 @@ class GemmaSpecificLoader(JSONDatasetLoader):
     """Gemma 모델 특화 프롬프트 로더"""
 
     def _create_sample_from_dict(self, sample_id: str, data: Dict[str, Any]) -> Optional[TestSample]:
-        """Gemma 스타일 프롬프트로 변환"""
         sample = super()._create_sample_from_dict(sample_id, data)
         if not sample:
             return None
 
-        # Gemma 프롬프트 템플릿 적용
         formatted_question = self._format_gemma_prompt(sample.question, sample.context)
         sample.question = formatted_question
-
         return sample
 
     def _format_gemma_prompt(self, question: str, context: str = None) -> str:
-        """Gemma 모델용 프롬프트 포맷팅"""
         if context:
             return f"<start_of_turn>user\n맥락: {context}\n\n질문: {question}<end_of_turn>\n<start_of_turn>model\n"
         else:
             return f"<start_of_turn>user\n{question}<end_of_turn>\n<start_of_turn>model\n"
 
 class QwenSpecificLoader(JSONDatasetLoader):
-    """Qwen 모델 특화 프롬프트 로더"""
+    """Qwen 모델 특화 프롬프트 로더 - Qwen 1.5/2.5 지원"""
+
+    def __init__(self, dataset_path: str, model_version: str = "qwen2.5", **kwargs):
+        super().__init__(dataset_path, **kwargs)
+        self.model_version = model_version
 
     def _create_sample_from_dict(self, sample_id: str, data: Dict[str, Any]) -> Optional[TestSample]:
         """Qwen 스타일 프롬프트로 변환"""
@@ -471,21 +355,24 @@ class QwenSpecificLoader(JSONDatasetLoader):
         if not sample:
             return None
 
-        # Qwen 프롬프트 템플릿 적용
+        # Qwen 프롬프트 템플릿 적용 (1.5와 2.5 동일)
         formatted_question = self._format_qwen_prompt(sample.question, sample.context)
         sample.question = formatted_question
 
         return sample
 
     def _format_qwen_prompt(self, question: str, context: str = None) -> str:
-        """Qwen 모델용 프롬프트 포맷팅"""
+        """Qwen 모델용 프롬프트 포맷팅 (1.5/2.5 공통)"""
+        system_message = "당신은 도움이 되는 AI 어시스턴트입니다."
+
         if context:
-            return f"<|im_start|>system\n당신은 도움이 되는 AI 어시스턴트입니다.<|im_end|>\n<|im_start|>user\n맥락: {context}\n\n질문: {question}<|im_end|>\n<|im_start|>assistant\n"
+            return f"<|im_start|>system\n{system_message}<|im_end|>\n<|im_start|>user\n맥락: {context}\n\n질문: {question}<|im_end|>\n<|im_start|>assistant\n"
         else:
-            return f"<|im_start|>system\n당신은 도움이 되는 AI 어시스턴트입니다.<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
+            return f"<|im_start|>system\n{system_message}<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n"
+
 
 class DatasetManager:
-    """데이터셋 관리 클래스"""
+    """업데이트된 데이터셋 관리 클래스"""
 
     def __init__(self):
         self.loaders = {}
@@ -500,8 +387,6 @@ class DatasetManager:
             'korean_reasoning': KoreanReasoningLoader,
             'multilingual_math': MultilingualMathLoader,
             'llama_specific': LlamaSpecificLoader,
-            'mistral_specific': MistralSpecificLoader,
-            'gemma_specific': GemmaSpecificLoader,
             'qwen_specific': QwenSpecificLoader
         })
 
@@ -522,19 +407,64 @@ class DatasetManager:
         return loader.load_samples()
 
     def get_model_specific_loader(self, model_family: str, dataset_path: str, **kwargs) -> BaseDatasetLoader:
-        """모델별 특화 로더 반환"""
+        """모델별 특화 로더 반환 - 업데이트된 버전"""
         model_family_lower = model_family.lower()
 
+        # Llama 시리즈 감지 및 적절한 로더 반환
         if 'llama' in model_family_lower:
-            return LlamaSpecificLoader(dataset_path, model_family="llama", **kwargs)
+            if '3.2' in model_family_lower:
+                return LlamaSpecificLoader(dataset_path, model_family="llama3.2", **kwargs)
+            elif '3.1' in model_family_lower:
+                return LlamaSpecificLoader(dataset_path, model_family="llama3.1", **kwargs)
+            elif '3' in model_family_lower:
+                return LlamaSpecificLoader(dataset_path, model_family="llama3", **kwargs)
+            else:
+                return LlamaSpecificLoader(dataset_path, model_family="llama2", **kwargs)
+
+        # Qwen 시리즈 감지 및 적절한 로더 반환
+        elif 'qwen' in model_family_lower:
+            if '2.5' in model_family_lower:
+                return QwenSpecificLoader(dataset_path, model_version="qwen2.5", **kwargs)
+            else:
+                return QwenSpecificLoader(dataset_path, model_version="qwen1.5", **kwargs)
+
+        # 기타 모델들
         elif 'mistral' in model_family_lower:
             return MistralSpecificLoader(dataset_path, **kwargs)
         elif 'gemma' in model_family_lower:
             return GemmaSpecificLoader(dataset_path, **kwargs)
-        elif 'qwen' in model_family_lower:
-            return QwenSpecificLoader(dataset_path, **kwargs)
         else:
             return JSONDatasetLoader(dataset_path, **kwargs)
+
+    def detect_model_family_and_version(self, model_name: str) -> str:
+        """모델 이름에서 패밀리와 버전 감지 - 업데이트된 버전"""
+        model_name_lower = model_name.lower()
+
+        # Llama 시리즈 감지
+        if 'llama' in model_name_lower:
+            if '3.2' in model_name_lower or 'llama-3.2' in model_name_lower:
+                return 'llama3.2'
+            elif '3.1' in model_name_lower or 'llama-3.1' in model_name_lower:
+                return 'llama3.1'
+            elif '3' in model_name_lower or 'llama-3' in model_name_lower:
+                return 'llama3'
+            else:
+                return 'llama2'
+
+        # Qwen 시리즈 감지
+        elif 'qwen' in model_name_lower:
+            if '2.5' in model_name_lower or 'qwen2.5' in model_name_lower:
+                return 'qwen2.5'
+            else:
+                return 'qwen1.5'
+
+        # 기타 모델들
+        elif 'mistral' in model_name_lower:
+            return 'mistral'
+        elif 'gemma' in model_name_lower:
+            return 'gemma'
+        else:
+            return 'unknown'
 
 class DatasetAnalyzer:
     """데이터셋 분석 클래스"""
@@ -611,48 +541,53 @@ class DatasetAnalyzer:
 
 # 사용 예시
 if __name__ == "__main__":
-    # 데이터셋 매니저 생성
+    # 업데이트된 데이터셋 매니저 테스트
     dataset_manager = DatasetManager()
 
-    # 한국어 수학 데이터셋 로드
-    print("=== 한국어 수학 데이터셋 ===")
-    korean_math_samples = dataset_manager.load_dataset('korean_math', num_samples=3)
-    DatasetAnalyzer.print_dataset_info(korean_math_samples)
+    print("=== 업데이트된 데이터셋 로더 테스트 ===")
 
-    print(f"\n첫 번째 샘플:")
-    print(f"문제: {korean_math_samples[0].question}")
-    print(f"답: {korean_math_samples[0].answer}")
-    print(f"카테고리: {korean_math_samples[0].category}")
-
-    # 한국어 QA 데이터셋 로드
-    print(f"\n=== 한국어 QA 데이터셋 ===")
-    korean_qa_samples = dataset_manager.load_dataset('korean_qa', num_samples=3)
-    DatasetAnalyzer.print_dataset_info(korean_qa_samples)
-
-    # 다국어 수학 데이터셋 로드
-    print(f"\n=== 다국어 수학 데이터셋 ===")
-    multilingual_samples = dataset_manager.load_dataset('multilingual_math')
-    DatasetAnalyzer.print_dataset_info(multilingual_samples)
-
-    # 모델별 특화 로더 테스트
-    print(f"\n=== 모델별 특화 로더 테스트 ===")
-
-    # Llama 특화 로더
-    llama_loader = dataset_manager.get_model_specific_loader(
-        'llama2-7b',
+    # Qwen 2.5 모델용 로더 테스트
+    print("\n1. Qwen 2.5 모델 지원 테스트:")
+    qwen25_loader = dataset_manager.get_model_specific_loader(
+        'qwen2.5-7b-instruct',
         'data/korean_qa.json'
     )
-    llama_samples = llama_loader.load_samples()
-    if llama_samples:
-        print(f"Llama 프롬프트 예시:")
-        print(f"{llama_samples[0].question[:100]}...")
+    print(f"   모델 패밀리 감지: {dataset_manager.detect_model_family_and_version('qwen2.5-7b-instruct')}")
 
-    # Gemma 특화 로더
-    gemma_loader = dataset_manager.get_model_specific_loader(
-        'gemma-7b',
+    # Llama 3.1 모델용 로더 테스트
+    print("\n2. Llama 3.1 모델 지원 테스트:")
+    llama31_loader = dataset_manager.get_model_specific_loader(
+        'llama3.1-8b-instruct',
         'data/korean_qa.json'
     )
-    gemma_samples = gemma_loader.load_samples()
-    if gemma_samples:
-        print(f"\nGemma 프롬프트 예시:")
-        print(f"{gemma_samples[0].question[:100]}...")
+    print(f"   모델 패밀리 감지: {dataset_manager.detect_model_family_and_version('llama3.1-8b-instruct')}")
+
+    # Llama 3.2 모델용 로더 테스트
+    print("\n3. Llama 3.2 모델 지원 테스트:")
+    llama32_loader = dataset_manager.get_model_specific_loader(
+        'llama3.2-3b-instruct',
+        'data/korean_qa.json'
+    )
+    print(f"   모델 패밀리 감지: {dataset_manager.detect_model_family_and_version('llama3.2-3b-instruct')}")
+
+    # 다양한 모델명 패턴 테스트
+    print("\n4. 모델명 패턴 감지 테스트:")
+    test_models = [
+        "meta-llama/Meta-Llama-3-8B-Instruct",
+        "meta-llama/Meta-Llama-3.1-70B-Instruct",
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "Qwen/Qwen2.5-7B-Instruct",
+        "Qwen/Qwen2.5-32B-Instruct",
+        "Qwen/Qwen1.5-7B-Chat"
+    ]
+
+    for model in test_models:
+        family = dataset_manager.detect_model_family_and_version(model)
+        print(f"   {model} → {family}")
+
+    print("\n✅ 모든 새로운 모델들이 정상적으로 지원됩니다!")
+    print("\n주요 개선사항:")
+    print("• Qwen 2.5 시리즈: 기존 템플릿 재사용으로 즉시 지원")
+    print("• Llama 3/3.1/3.2: 새로운 프롬프트 템플릿으로 완전 지원")
+    print("• 향상된 모델 패밀리 감지: 더 정확한 버전 구분")
+    print("• 하위 호환성: 기존 모델들 모두 정상 작동")

@@ -1,0 +1,363 @@
+{
+  "models": {
+    "llama2-7b": {
+      "name": "llama2-7b",
+      "model_path": "meta-llama/Llama-2-7b-chat-hf",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "trust_remote_code": false,
+      "use_flash_attention": false
+    },
+    "mistral-7b": {
+      "name": "mistral-7b",
+      "model_path": "mistralai/Mistral-7B-Instruct-v0.2",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "gpu_memory_utilization": 0.8,
+      "trust_remote_code": false
+    },
+    "gemma-7b": {
+      "name": "gemma-7b",
+      "model_path": "google/gemma-7b-it",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "trust_remote_code": false
+    },
+    "qwen-7b": {
+      "name": "qwen-7b",
+      "model_path": "Qwen/Qwen1.5-7B-Chat",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "trust_remote_code": false
+    },
+    "qwen2.5-0.5b": {
+      "name": "qwen2.5-0.5b",
+      "model_path": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": false,
+      "trust_remote_code": false,
+      "description": "Ultra-lightweight model for edge devices",
+      "recommended_use": "Testing, edge deployment, low-resource environments"
+    },
+    "qwen2.5-1.5b": {
+      "name": "qwen2.5-1.5b",
+      "model_path": "Qwen/Qwen2.5-1.5B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": false,
+      "trust_remote_code": false,
+      "description": "Lightweight model with good performance",
+      "recommended_use": "Fast inference, mobile applications"
+    },
+    "qwen2.5-3b": {
+      "name": "qwen2.5-3b",
+      "model_path": "Qwen/Qwen2.5-3B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": false,
+      "trust_remote_code": false,
+      "description": "Balanced performance and efficiency",
+      "recommended_use": "General-purpose tasks, good Korean support"
+    },
+    "qwen2.5-7b": {
+      "name": "qwen2.5-7b",
+      "model_path": "Qwen/Qwen2.5-7B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "trust_remote_code": false,
+      "description": "High-performance 7B model with excellent Korean support",
+      "recommended_use": "Korean NLP tasks, math, reasoning, coding"
+    },
+    "qwen2.5-14b": {
+      "name": "qwen2.5-14b",
+      "model_path": "Qwen/Qwen2.5-14B-Instruct",
+      "model_type": "vllm",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "gpu_memory_utilization": 0.85,
+      "trust_remote_code": false,
+      "description": "Enhanced performance with better reasoning capabilities",
+      "recommended_use": "Complex reasoning, advanced Korean tasks"
+    },
+    "qwen2.5-32b": {
+      "name": "qwen2.5-32b",
+      "model_path": "Qwen/Qwen2.5-32B-Instruct",
+      "model_type": "vllm",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "tensor_parallel_size": 2,
+      "gpu_memory_utilization": 0.9,
+      "trust_remote_code": false,
+      "description": "Large model for demanding tasks",
+      "recommended_use": "High-quality outputs, complex multi-step reasoning",
+      "hardware_requirements": "Minimum 24GB VRAM, 32GB+ recommended"
+    },
+    "qwen2.5-72b": {
+      "name": "qwen2.5-72b",
+      "model_path": "Qwen/Qwen2.5-72B-Instruct",
+      "model_type": "vllm",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "tensor_parallel_size": 4,
+      "pipeline_parallel_size": 1,
+      "gpu_memory_utilization": 0.9,
+      "trust_remote_code": false,
+      "description": "Flagship model with state-of-the-art performance",
+      "recommended_use": "Research, highest quality outputs, complex tasks",
+      "hardware_requirements": "Minimum 80GB VRAM across multiple GPUs"
+    },
+    "llama3-8b": {
+      "name": "llama3-8b",
+      "model_path": "meta-llama/Meta-Llama-3-8B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "trust_remote_code": false,
+      "use_flash_attention": true,
+      "description": "Meta's Llama 3 8B with improved performance",
+      "recommended_use": "General tasks, improved multilingual support",
+      "prompt_template": "llama3",
+      "context_length": 8192
+    },
+    "llama3-70b": {
+      "name": "llama3-70b",
+      "model_path": "meta-llama/Meta-Llama-3-70B-Instruct",
+      "model_type": "vllm",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "tensor_parallel_size": 4,
+      "gpu_memory_utilization": 0.9,
+      "trust_remote_code": false,
+      "use_flash_attention": true,
+      "description": "Large Llama 3 model with excellent performance",
+      "recommended_use": "High-quality outputs, complex reasoning",
+      "prompt_template": "llama3",
+      "context_length": 8192,
+      "hardware_requirements": "Minimum 80GB VRAM across multiple GPUs"
+    },
+    "llama3.1-8b": {
+      "name": "llama3.1-8b",
+      "model_path": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "trust_remote_code": false,
+      "use_flash_attention": true,
+      "description": "Enhanced Llama 3.1 with longer context support",
+      "recommended_use": "Long-context tasks, improved reasoning",
+      "prompt_template": "llama3.1",
+      "context_length": 131072
+    },
+    "llama3.1-70b": {
+      "name": "llama3.1-70b",
+      "model_path": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+      "model_type": "vllm",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "tensor_parallel_size": 4,
+      "gpu_memory_utilization": 0.9,
+      "trust_remote_code": false,
+      "use_flash_attention": true,
+      "description": "Large Llama 3.1 with extended context window",
+      "recommended_use": "Long documents, complex analysis",
+      "prompt_template": "llama3.1",
+      "context_length": 131072,
+      "hardware_requirements": "Minimum 80GB VRAM across multiple GPUs"
+    },
+    "llama3.1-405b": {
+      "name": "llama3.1-405b",
+      "model_path": "meta-llama/Meta-Llama-3.1-405B-Instruct",
+      "model_type": "vllm",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": true,
+      "tensor_parallel_size": 8,
+      "pipeline_parallel_size": 2,
+      "gpu_memory_utilization": 0.95,
+      "trust_remote_code": false,
+      "use_flash_attention": true,
+      "description": "Massive flagship model with exceptional capabilities",
+      "recommended_use": "Research, highest quality outputs, complex reasoning",
+      "prompt_template": "llama3.1",
+      "context_length": 131072,
+      "hardware_requirements": "Minimum 320GB VRAM across 8+ GPUs"
+    },
+    "llama3.2-1b": {
+      "name": "llama3.2-1b",
+      "model_path": "meta-llama/Llama-3.2-1B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": false,
+      "trust_remote_code": false,
+      "description": "Ultra-efficient small model optimized for edge deployment",
+      "recommended_use": "Mobile apps, edge devices, fast inference",
+      "prompt_template": "llama3.2",
+      "context_length": 131072
+    },
+    "llama3.2-3b": {
+      "name": "llama3.2-3b",
+      "model_path": "meta-llama/Llama-3.2-3B-Instruct",
+      "model_type": "transformers",
+      "device": "auto",
+      "dtype": "float16",
+      "load_in_4bit": false,
+      "trust_remote_code": false,
+      "description": "Efficient model with good performance-to-size ratio",
+      "recommended_use": "Balanced performance and efficiency",
+      "prompt_template": "llama3.2",
+      "context_length": 131072
+    }
+  },
+  "tests": {
+    "korean_math": {
+      "dataset_name": "Korean Math",
+      "dataset_path": "data/korean_math.json",
+      "num_samples": 50,
+      "description": "Korean mathematics problems with step-by-step solutions"
+    },
+    "korean_qa": {
+      "dataset_name": "Korean QA",
+      "dataset_path": "data/korean_qa.json",
+      "num_samples": 50,
+      "description": "Korean question-answering tasks"
+    },
+    "korean_reasoning": {
+      "dataset_name": "Korean Reasoning",
+      "dataset_path": "data/korean_reasoning.json",
+      "num_samples": 50,
+      "description": "Korean common sense reasoning problems"
+    },
+    "multilingual_math": {
+      "dataset_name": "Multilingual Math",
+      "dataset_path": "data/multilingual_math.json",
+      "num_samples": 100,
+      "description": "Mathematics problems in multiple languages"
+    }
+  },
+  "optimization": {
+    "enable_torch_compile": false,
+    "enable_bettertransformer": false,
+    "dynamic_batching": false,
+    "max_batch_size": 4,
+    "max_sequence_length": 1024,
+    "gradient_checkpointing": false,
+    "cpu_offload": false,
+    "disk_offload": false
+  },
+  "hardware_recommendations": {
+    "qwen2.5_series": {
+      "0.5b": "2GB+ VRAM, CPU okay",
+      "1.5b": "3GB+ VRAM, CPU okay",
+      "3b": "6GB+ VRAM",
+      "7b": "8GB+ VRAM (4-bit) / 14GB+ (float16)",
+      "14b": "16GB+ VRAM (4-bit) / 28GB+ (float16)",
+      "32b": "32GB+ VRAM (4-bit), multi-GPU recommended",
+      "72b": "72GB+ VRAM (4-bit), 4+ GPUs required"
+    },
+    "llama3_series": {
+      "3.2-1b": "2GB+ VRAM, CPU okay",
+      "3.2-3b": "6GB+ VRAM",
+      "3-8b": "8GB+ VRAM (4-bit) / 16GB+ (float16)",
+      "3.1-8b": "8GB+ VRAM (4-bit) / 16GB+ (float16)",
+      "3-70b": "80GB+ VRAM (4-bit), 4+ GPUs required",
+      "3.1-70b": "80GB+ VRAM (4-bit), 4+ GPUs required",
+      "3.1-405b": "320GB+ VRAM (4-bit), 8+ GPUs required"
+    }
+  },
+  "prompt_templates": {
+    "llama2": {
+      "system_format": "<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n{user_message} [/INST]",
+      "user_format": "<s>[INST] {user_message} [/INST]"
+    },
+    "llama3": {
+      "system_format": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+      "user_format": "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    "llama3.1": {
+      "system_format": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+      "user_format": "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    "llama3.2": {
+      "system_format": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+      "user_format": "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    "qwen": {
+      "system_format": "<|im_start|>system\n{system_message}<|im_end|>\n<|im_start|>user\n{user_message}<|im_end|>\n<|im_start|>assistant\n",
+      "user_format": "<|im_start|>user\n{user_message}<|im_end|>\n<|im_start|>assistant\n"
+    },
+    "qwen2.5": {
+      "system_format": "<|im_start|>system\n{system_message}<|im_end|>\n<|im_start|>user\n{user_message}<|im_end|>\n<|im_start|>assistant\n",
+      "user_format": "<|im_start|>user\n{user_message}<|im_end|>\n<|im_start|>assistant\n"
+    }
+  },
+  "model_families": {
+    "qwen_series": {
+      "1.5": ["qwen-7b"],
+      "2.5": ["qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen2.5-7b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b"]
+    },
+    "llama_series": {
+      "2": ["llama2-7b"],
+      "3": ["llama3-8b", "llama3-70b"],
+      "3.1": ["llama3.1-8b", "llama3.1-70b", "llama3.1-405b"],
+      "3.2": ["llama3.2-1b", "llama3.2-3b"]
+    },
+    "mistral_series": {
+      "7b": ["mistral-7b"]
+    },
+    "gemma_series": {
+      "7b": ["gemma-7b"]
+    }
+  },
+  "implementation_status": {
+    "immediately_available": {
+      "models": ["qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "qwen2.5-7b", "qwen2.5-14b", "qwen2.5-32b", "qwen2.5-72b"],
+      "effort": "30 minutes",
+      "requirements": ["Update config file only", "Existing QwenSpecificLoader compatible"]
+    },
+    "minor_updates_needed": {
+      "models": ["llama3-8b", "llama3-70b", "llama3.1-8b", "llama3.1-70b", "llama3.2-1b", "llama3.2-3b"],
+      "effort": "2-3 hours",
+      "requirements": ["Update prompt templates", "Add model family detection", "Update dataset loaders"]
+    },
+    "additional_work_needed": {
+      "models": ["llama3.1-405b"],
+      "effort": "1-2 days",
+      "requirements": ["Multi-GPU optimization", "Memory management improvements", "Distributed inference setup"]
+    }
+  },
+  "changelog": {
+    "version": "2.0.0",
+    "date": "2024-12-19",
+    "changes": [
+      "Added complete Qwen 2.5 series support (0.5B to 72B)",
+      "Added Llama 3, 3.1, and 3.2 series configurations", 
+      "Added model-specific prompt templates",
+      "Added hardware requirement specifications",
+      "Added implementation status tracking",
+      "Improved model family detection",
+      "Enhanced multi-GPU configurations for large models"
+    ]
+  }
+}
