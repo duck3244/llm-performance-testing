@@ -705,6 +705,185 @@ class ModelManager:
 
         return results
 
+
+# model_interface.py 추가 수정사항
+
+import signal
+import os
+import sys
+from contextlib import contextmanager
+
+
+@contextmanager
+def signal_safe_context():
+    """신호 처리 안전 컨텍스트"""
+    # 메인 스레드에서만 신호 처리 비활성화
+    if threading.current_thread() is threading.main_thread():
+        old_handler = None
+        try:
+            # SIGALRM 핸들러 임시 비활성화
+            old_handler = signal.signal(signal.SIGALRM, signal.SIG_DFL)
+            yield
+        finally:
+            if old_handler is not None:
+                signal.signal(signal.SIGALRM, old_handler)
+    else:
+        yield
+
+
+class SignalSafeTransformersInterface(ThreadSafeTransformersInterface):
+    """신호 안전 Transformers 인터페이스"""
+
+    def _initialize_model(self):
+        """신호 안전 모델 초기화"""
+        try:
+            with signal_safe_context():
+                super()._initialize_model()
+        except Exception as e:
+            if "signal only works in main thread" in str(e):
+                self.logger.warning("Signal handling disabled for thread safety")
+                # trust_remote_code 검증 비활성화
+                os.environ['HF_TRUST_REMOTE_CODE'] = 'false'
+                super()._initialize_model()
+            else:
+                raise
+
+    def _load_model_with_fallback(self):
+        """대체 방법으로 모델 로딩"""
+        try:
+            # 1차 시도: 일반 로딩
+            return self._load_model_primary()
+        except Exception as e:
+            self.logger.warning(f"Primary loading failed: {e}")
+
+            try:
+                # 2차 시도: 신뢰 코드 비활성화
+                return self._load_model_no_trust()
+            except Exception as e2:
+                self.logger.warning(f"No-trust loading failed: {e2}")
+
+                # 3차 시도: CPU 전용
+                return self._load_model_cpu_only()
+
+    def _load_model_primary(self):
+        """기본 모델 로딩"""
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        model_kwargs = {
+            'trust_remote_code': self.config.trust_remote_code,
+            'torch_dtype': getattr(torch, self.config.dtype),
+            'device_map': self.config.device if self.config.device != "auto" else "auto",
+        }
+
+        # 양자화 설정
+        if self.config.load_in_4bit or self.config.load_in_8bit:
+            model_kwargs['quantization_config'] = self._get_quantization_config()
+
+        return AutoModelForCausalLM.from_pretrained(
+            self.config.model_path, **model_kwargs
+        )
+
+    def _load_model_no_trust(self):
+        """신뢰 코드 없이 모델 로딩"""
+        from transformers import AutoModelForCausalLM
+
+        model_kwargs = {
+            'trust_remote_code': False,  # 강제 비활성화
+            'torch_dtype': getattr(torch, self.config.dtype),
+            'device_map': self.config.device if self.config.device != "auto" else "auto",
+        }
+
+        return AutoModelForCausalLM.from_pretrained(
+            self.config.model_path, **model_kwargs
+        )
+
+    def _load_model_cpu_only(self):
+        """CPU 전용 모델 로딩"""
+        from transformers import AutoModelForCausalLM
+
+        model_kwargs = {
+            'trust_remote_code': False,
+            'torch_dtype': torch.float32,  # CPU는 float32
+            'device_map': 'cpu',
+        }
+
+        self.logger.info("Falling back to CPU-only mode")
+        return AutoModelForCausalLM.from_pretrained(
+            self.config.model_path, **model_kwargs
+        )
+
+
+class RobustModelManager(ModelManager):
+    """강화된 모델 매니저"""
+
+    def __init__(self, optimization_config: OptimizationConfig):
+        super().__init__(optimization_config)
+        self.error_handler = ErrorHandler(logging.getLogger(__name__))
+        self.model_locks = {}  # 모델별 락
+
+    def register_model(self, name: str, config: ModelConfig):
+        """강화된 모델 등록"""
+        if name in self.model_locks:
+            return  # 이미 등록됨
+
+        self.model_locks[name] = threading.Lock()
+
+        try:
+            # 모델 타입에 따른 안전한 인터페이스 선택
+            if config.model_type == "transformers":
+                if threading.current_thread() is threading.main_thread():
+                    interface = SignalSafeTransformersInterface(config, self.optimization_config)
+                else:
+                    interface = ThreadSafeTransformersInterface(config, self.optimization_config)
+            elif config.model_type == "vllm":
+                interface = VLLMInterface(config, self.optimization_config)
+            elif config.model_type == "ollama":
+                interface = OllamaInterface(config, self.optimization_config)
+            elif config.model_type == "tgi":
+                interface = TGIInterface(config, self.optimization_config)
+            else:
+                raise ValueError(f"Unsupported model type: {config.model_type}")
+
+            self.interfaces[name] = interface
+            logging.info(f"Model registered safely: {name} ({config.model_type})")
+
+        except Exception as e:
+            self.error_handler.handle_model_loading_error(name, e)
+            raise
+
+    def get_interface(self, model_name: str) -> BaseModelInterface:
+        """스레드 안전 인터페이스 반환"""
+        if model_name not in self.interfaces:
+            raise ValueError(f"Model {model_name} not registered")
+
+        # 모델별 락 사용
+        with self.model_locks.get(model_name, threading.Lock()):
+            return self.interfaces[model_name]
+
+
+# 환경 변수 설정으로 일반적인 문제 해결
+def setup_safe_environment():
+    """안전한 환경 설정"""
+    # HuggingFace 관련
+    os.environ.setdefault('HF_HOME', os.path.expanduser('~/.cache/huggingface'))
+    os.environ.setdefault('TRANSFORMERS_CACHE', os.path.expanduser('~/.cache/huggingface/transformers'))
+
+    # PyTorch 관련
+    os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:512')
+
+    # 신호 처리 관련
+    if 'TOKENIZERS_PARALLELISM' not in os.environ:
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # 토크나이저 병렬 처리 비활성화
+
+    # 멀티프로세싱 관련
+    if sys.platform.startswith('linux'):
+        os.environ.setdefault('OMP_NUM_THREADS', '1')
+
+
+# 모듈 초기화 시 안전한 환경 설정
+setup_safe_environment()
+
+
 # 사용 예시
 if __name__ == "__main__":
     from config import ConfigManager, OptimizationConfig

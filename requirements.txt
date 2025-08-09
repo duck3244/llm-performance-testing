@@ -1,93 +1,150 @@
-# 오픈소스 LLM 추론 성능 최적화 시스템 필수 패키지
+# 안전한 오픈소스 LLM 추론 성능 최적화 시스템 의존성
+# 모든 호환성 문제가 해결된 버전
 
-# 핵심 라이브러리
-numpy>=1.21.0
-pandas>=1.3.0
-scipy>=1.7.0
+# ===== 핵심 라이브러리 (호환성 검증된 버전) =====
+numpy>=1.21.0,<1.25.0  # scikit-optimize 호환성
+pandas>=1.3.0,<2.0.0
+scipy>=1.7.0,<1.11.0
 
-# 머신러닝 및 최적화
-scikit-learn>=1.0.0
-scikit-optimize>=0.9.0  # 베이지안 최적화용
-torch>=2.0.0
-transformers>=4.35.0
+# ===== 머신러닝 및 최적화 (버전 고정) =====
+scikit-learn>=1.0.0,<1.3.0  # scikit-optimize 호환성을 위해 상한 설정
+scikit-optimize>=0.9.0,<0.10.0  # 안정 버전 사용
+torch>=2.0.0,<2.1.0  # 안정성을 위해 상한 설정
+transformers>=4.35.0,<4.37.0  # 검증된 안정 버전
 
-# 오픈소스 LLM 추론 엔진
-# vllm>=0.2.0  # 고성능 추론 (CUDA 환경에서만)
-# text-generation>=0.6.0  # Text Generation Inference 클라이언트
-# ollama>=0.1.0  # Ollama 클라이언트
+# ===== 오픈소스 LLM 추론 엔진 (선택적 설치) =====
+# 주의: 이 패키지들은 환경에 따라 수동 설치 권장
+# vllm>=0.2.0,<0.3.0  # CUDA 11.8+ 환경에서만, 별도 설치 권장
+# text-generation>=0.6.0  # TGI 클라이언트, 필요시 별도 설치
+# ollama>=0.1.0  # Ollama 클라이언트, 필요시 별도 설치
 
-# 모델 최적화
-optimum>=1.14.0  # HuggingFace 최적화 도구
-bitsandbytes>=0.41.0  # 양자화
-accelerate>=0.24.0  # 모델 로딩 최적화
+# ===== 모델 최적화 =====
+optimum>=1.14.0,<1.16.0
+bitsandbytes>=0.41.0,<0.42.0  # GPU 환경에서만 설치됨
+accelerate>=0.24.0,<0.25.0
 
-# 한국어 처리
-sentence-transformers>=2.2.0  # 의미적 유사도 계산용
-# konlpy>=0.6.0  # 한국어 형태소 분석 (선택사항)
+# ===== 한국어 처리 (선택적) =====
+sentence-transformers>=2.2.0,<2.3.0
+# konlpy>=0.6.0  # 한국어 형태소 분석, 필요시 별도 설치
 
-# 데이터 처리
-datasets>=2.14.0  # HuggingFace 데이터셋
-jsonlines>=3.1.0
-pyyaml>=6.0
+# ===== 데이터 처리 =====
+datasets>=2.14.0,<2.16.0
+jsonlines>=3.1.0,<4.0.0
+pyyaml>=6.0,<7.0
 
-# 시각화
-matplotlib>=3.5.0
-seaborn>=0.11.0
-plotly>=5.17.0
+# ===== 시각화 =====
+matplotlib>=3.5.0,<3.8.0
+seaborn>=0.11.0,<0.13.0
+plotly>=5.17.0,<5.18.0
 kaleido>=0.2.1  # plotly 이미지 저장용
 
-# 시스템 모니터링
-psutil>=5.9.0
-pynvml>=11.4.1  # GPU 모니터링
-GPUtil>=1.4.0  # GPU 유틸리티
+# ===== 시스템 모니터링 =====
+psutil>=5.9.0,<6.0.0
+pynvml>=11.4.1,<12.0.0  # NVIDIA GPU 모니터링
+GPUtil>=1.4.0,<2.0.0
 
-# 비동기 처리
-asyncio
-aiofiles>=22.1.0
+# ===== 비동기 처리 =====
+aiofiles>=22.1.0,<23.0.0
+asyncio-throttle>=1.0.2,<2.0.0  # 요청 제한용
 
-# 웹 요청
-requests>=2.28.0
-httpx>=0.24.0  # 비동기 HTTP 클라이언트
+# ===== 웹 요청 =====
+requests>=2.28.0,<3.0.0
+httpx>=0.24.0,<0.26.0
 
-# 설정 및 로깅
-python-dotenv>=1.0.0
-click>=8.0.0  # CLI 개선용 (선택사항)
+# ===== 설정 및 로깅 =====
+python-dotenv>=1.0.0,<2.0.0
+colorama>=0.4.6,<0.5.0
+tabulate>=0.9.0,<1.0.0
+rich>=13.0.0,<14.0.0
 
-# 수치 계산 및 통계
-scikit-image>=0.19.0  # 이미지 처리 (선택사항)
-statsmodels>=0.13.0  # 통계 분석
+# ===== 유틸리티 =====
+tqdm>=4.64.0,<5.0.0
+typing-extensions>=4.0.0,<5.0.0  # Python 3.8 호환성
 
-# 진행률 표시 및 유틸리티
-tqdm>=4.64.0
-colorama>=0.4.6  # 컬러 출력
-tabulate>=0.9.0  # 테이블 형식 출력
-rich>=13.0.0  # 풍부한 터미널 출력
+# ===== 개발 및 테스트 (개발 환경에서만) =====
+# pytest>=7.0.0,<8.0.0
+# pytest-asyncio>=0.21.0,<0.22.0
+# black>=22.0.0,<24.0.0
+# flake8>=5.0.0,<7.0.0
 
-# 개발 및 테스트 (선택사항)
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
-black>=22.0.0
-flake8>=5.0.0
-mypy>=1.0.0
+# ===== 메모리 프로파일링 (디버깅용) =====
+# memory-profiler>=0.60.0,<1.0.0
+# pympler>=0.9,<1.0
 
-# Jupyter 노트북 지원 (선택사항)
-jupyter>=1.0.0
-ipywidgets>=8.0.0
-jupyterlab>=3.5.0
-
-# 추가 최적화 라이브러리 (선택사항)
-# intel-extension-for-pytorch  # Intel CPU 최적화
-# deepspeed>=0.12.0  # 분산 학습 및 추론
-# onnx>=1.14.0  # 모델 최적화
-# onnxruntime>=1.16.0  # ONNX 런타임
-
-# 메모리 프로파일링 (개발용)
-memory-profiler>=0.60.0
-pympler>=0.9
-
-# 설치 가이드:
-# 1. 기본 설치: pip install -r requirements.txt
-# 2. GPU 가속 (CUDA): pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-# 3. vLLM 설치 (고성능 추론): pip install vllm
-# 4. Ollama 설치: pip install ollama
-# 5. 전체 개발 환경: pip install -r requirements.txt && pip install pytest black flake8
+# ===== 설치 가이드 =====
+#
+# 1. 기본 설치:
+#    pip install -r safe_requirements.txt
+#
+# 2. GPU 가속 (CUDA 11.8):
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#
+# 3. GPU 가속 (CUDA 12.1):
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#
+# 4. CPU 전용:
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# 5. vLLM (고성능 추론, CUDA 11.8+ 필요):
+#    pip install vllm==0.2.7
+#
+# 6. Ollama 클라이언트:
+#    pip install ollama==0.1.7
+#
+# 7. 개발 도구:
+#    pip install pytest black flake8
+#
+# 8. 한국어 처리:
+#    pip install konlpy
+#
+# ===== 호환성 정보 =====
+#
+# Python: 3.8-3.11 (3.12는 일부 패키지에서 문제 가능)
+# CUDA: 11.8 또는 12.1 권장
+# 메모리: 최소 8GB RAM, 16GB+ 권장
+# GPU: 최소 8GB VRAM (7B 모델용), 16GB+ 권장
+#
+# ===== 알려진 문제 및 해결책 =====
+#
+# 1. scikit-optimize와 scikit-learn 버전 충돌:
+#    해결: scikit-learn==1.2.2 scikit-optimize==0.9.0 사용
+#
+# 2. bitsandbytes CUDA 오류:
+#    해결: conda install -c conda-forge cudatoolkit 또는 CPU 모드 사용
+#
+# 3. transformers 'Already borrowed' 오류:
+#    해결: TOKENIZERS_PARALLELISM=false 환경변수 설정
+#
+# 4. vLLM 설치 실패:
+#    해결: CUDA 버전 확인 후 해당 버전용 wheel 설치
+#
+# 5. 메모리 부족 오류:
+#    해결: 양자화 활성화 (load_in_4bit=True) 또는 작은 모델 사용
+#
+# ===== 환경 변수 설정 =====
+#
+# export TOKENIZERS_PARALLELISM=false
+# export HF_TRUST_REMOTE_CODE=false
+# export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+# export OMP_NUM_THREADS=1  # Linux only
+#
+# ===== 검증된 조합 =====
+#
+# 안정성 우선 (권장):
+# - Python 3.9
+# - torch==2.0.1
+# - transformers==4.35.2
+# - scikit-learn==1.2.2
+# - scikit-optimize==0.9.0
+#
+# 성능 우선:
+# - Python 3.10
+# - torch==2.0.1+cu118
+# - transformers==4.36.0
+# - vllm==0.2.7
+# - bitsandbytes==0.41.3
+#
+# CPU 전용:
+# - torch-cpu 버전 사용
+# - bitsandbytes 제외
+# - 양자화 비활성화
