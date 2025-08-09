@@ -1,0 +1,78 @@
+# 개선된 오픈소스 LLM 추론 성능 최적화 시스템 의존성
+# Critical 문제 해결: scikit-optimize 제거, optuna로 통일
+
+# ===== 핵심 라이브러리 (안정화된 버전) =====
+numpy>=1.21.0,<1.26.0
+pandas>=1.5.0,<2.1.0
+scipy>=1.7.0,<1.12.0
+
+# ===== 머신러닝 및 최적화 (optuna로 통일) =====
+optuna>=3.4.0,<4.0.0  # 베이지안 최적화 메인 라이브러리
+torch>=2.0.0,<2.2.0   # 안정성을 위해 상한 설정
+transformers>=4.35.0,<4.40.0  # 검증된 안정 버전
+
+# ===== 모델 최적화 =====
+optimum>=1.14.0,<1.17.0
+bitsandbytes>=0.41.0,<0.43.0  # GPU 환경에서만 설치됨
+accelerate>=0.24.0,<0.26.0
+
+# ===== 한국어 처리 (선택적) =====
+sentence-transformers>=2.2.0,<2.4.0
+
+# ===== 데이터 처리 =====
+datasets>=2.14.0,<2.17.0
+jsonlines>=3.1.0,<4.0.0
+pyyaml>=6.0,<7.0
+
+# ===== 시각화 =====
+matplotlib>=3.5.0,<3.8.0
+seaborn>=0.11.0,<0.13.0
+plotly>=5.17.0,<5.19.0
+kaleido>=0.2.1  # plotly 이미지 저장용
+
+# ===== 시스템 모니터링 =====
+psutil>=5.9.0,<6.0.0
+pynvml>=11.4.1,<12.0.0  # NVIDIA GPU 모니터링
+
+# ===== 비동기 처리 (개선된 버전) =====
+aiofiles>=22.1.0,<24.0.0
+asyncio-throttle>=1.0.2,<2.0.0
+
+# ===== 웹 요청 =====
+requests>=2.28.0,<3.0.0
+httpx>=0.24.0,<0.26.0
+
+# ===== 설정 및 로깅 =====
+python-dotenv>=1.0.0,<2.0.0
+colorama>=0.4.6,<0.5.0
+rich>=13.0.0,<14.0.0  # 향상된 로깅
+
+# ===== 유틸리티 =====
+tqdm>=4.64.0,<5.0.0
+typing-extensions>=4.0.0,<5.0.0
+
+# ===== 개발 및 테스트 =====
+pytest>=7.0.0,<8.0.0
+pytest-asyncio>=0.21.0,<0.23.0
+black>=22.0.0,<24.0.0
+mypy>=1.0.0,<2.0.0
+
+# ===== 설치 가이드 =====
+#
+# 1. 기본 설치:
+#    pip install -r improved_requirements.txt
+#
+# 2. GPU 가속 (CUDA 11.8):
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#
+# 3. GPU 가속 (CUDA 12.1):
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#
+# 4. CPU 전용:
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# ===== 환경 변수 설정 =====
+#
+# export TOKENIZERS_PARALLELISM=false
+# export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+# export OMP_NUM_THREADS=4
