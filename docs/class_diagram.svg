@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="1000" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경 -->
+  <rect width="1400" height="1000" fill="#f8f9fa"/>
+  
+  <!-- 제목 -->
+  <text x="700" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#2c3e50">
+    LLM 최적화 시스템 - 클래스 다이어그램
+  </text>
+  
+  <!-- BaseConfig (추상 클래스) -->
+  <rect x="50" y="60" width="250" height="120" fill="#9b59b6" stroke="#8e44ad" stroke-width="2" rx="5"/>
+  <text x="175" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold" font-style="italic">
+    BaseConfig (abstract)
+  </text>
+  <line x1="50" y1="85" x2="300" y2="85" stroke="white" stroke-width="1"/>
+  <text x="60" y="100" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - name: str
+  </text>
+  <text x="60" y="115" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - version: str
+  </text>
+  <text x="60" y="130" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - metadata: Dict
+  </text>
+  <line x1="50" y1="140" x2="300" y2="140" stroke="white" stroke-width="1"/>
+  <text x="60" y="155" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + validate(): bool
+  </text>
+  <text x="60" y="170" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + to_dict(): Dict
+  </text>
+  
+  <!-- ModelConfig -->
+  <rect x="350" y="60" width="280" height="160" fill="#8e44ad" stroke="#7d3c98" stroke-width="2" rx="5"/>
+  <text x="490" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    ModelConfig
+  </text>
+  <line x1="350" y1="85" x2="630" y2="85" stroke="white" stroke-width="1"/>
+  <text x="360" y="100" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - model_path: str
+  </text>
+  <text x="360" y="115" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - model_type: ModelType
+  </text>
+  <text x="360" y="130" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - device: DeviceType
+  </text>
+  <text x="360" y="145" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - quantization: QuantizationConfig
+  </text>
+  <line x1="350" y1="155" x2="630" y2="155" stroke="white" stroke-width="1"/>
+  <text x="360" y="170" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + get_memory_estimate(): float
+  </text>
+  <text x="360" y="185" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + optimize_for_hardware()
+  </text>
+  <text x="360" y="200" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + get_recommended_hardware()
+  </text>
+  
+  <!-- Enums -->
+  <rect x="680" y="60" width="180" height="100" fill="#e74c3c" stroke="#c0392b" stroke-width="2" rx="5"/>
+  <text x="770" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    ModelType (enum)
+  </text>
+  <line x1="680" y1="85" x2="860" y2="85" stroke="white" stroke-width="1"/>
+  <text x="690" y="100" font-family="Arial, sans-serif" font-size="9" fill="white">
+    TRANSFORMERS
+  </text>
+  <text x="690" y="115" font-family="Arial, sans-serif" font-size="9" fill="white">
+    VLLM
+  </text>
+  <text x="690" y="130" font-family="Arial, sans-serif" font-size="9" fill="white">
+    OLLAMA
+  </text>
+  <text x="690" y="145" font-family="Arial, sans-serif" font-size="9" fill="white">
+    TGI
+  </text>
+  
+  <rect x="900" y="60" width="180" height="100" fill="#e67e22" stroke="#d35400" stroke-width="2" rx="5"/>
+  <text x="990" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    DataType (enum)
+  </text>
+  <line x1="900" y1="85" x2="1080" y2="85" stroke="white" stroke-width="1"/>
+  <text x="910" y="100" font-family="Arial, sans-serif" font-size="9" fill="white">
+    FLOAT16
+  </text>
+  <text x="910" y="115" font-family="Arial, sans-serif" font-size="9" fill="white">
+    FLOAT32
+  </text>
+  <text x="910" y="130" font-family="Arial, sans-serif" font-size="9" fill="white">
+    BFLOAT16
+  </text>
+  <text x="910" y="145" font-family="Arial, sans-serif" font-size="9" fill="white">
+    INT8, INT4
+  </text>
+  
+  <!-- ImprovedResourceManager -->
+  <rect x="50" y="250" width="300" height="180" fill="#27ae60" stroke="#229954" stroke-width="2" rx="5"/>
+  <text x="200" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    ImprovedResourceManager
+  </text>
+  <line x1="50" y1="275" x2="350" y2="275" stroke="white" stroke-width="1"/>
+  <text x="60" y="290" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - model_registry
+  </text>
+  <text x="60" y="305" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - cleanup_manager
+  </text>
+  <text x="60" y="320" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - warning_threshold: float
+  </text>
+  <text x="60" y="335" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - critical_threshold: float
+  </text>
+  <line x1="50" y1="345" x2="350" y2="345" stroke="white" stroke-width="1"/>
+  <text x="60" y="360" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + register_model(name, ref, device)
+  </text>
+  <text x="60" y="375" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + cleanup_model(name): bool
+  </text>
+  <text x="60" y="390" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + get_memory_stats(): Dict
+  </text>
+  <text x="60" y="405" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + memory_guard(): ContextManager
+  </text>
+  <text x="60" y="420" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + emergency_cleanup(): bool
+  </text>
+  
+  <!-- SafeAsyncManager -->
+  <rect x="380" y="250" width="300" height="180" fill="#3498db" stroke="#2980b9" stroke-width="2" rx="5"/>
+  <text x="530" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    SafeAsyncManager
+  </text>
+  <line x1="380" y1="275" x2="680" y2="275" stroke="white" stroke-width="1"/>
+  <text x="390" y="290" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - task_registry
+  </text>
+  <text x="390" y="305" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - event_loop_manager
+  </text>
+  <text x="390" y="320" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - max_workers: int
+  </text>
+  <text x="390" y="335" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - thread_executor
+  </text>
+  <line x1="380" y1="345" x2="680" y2="345" stroke="white" stroke-width="1"/>
+  <text x="390" y="360" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_async(coro, timeout): T
+  </text>
+  <text x="390" y="375" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + submit_coro(coro, name): str
+  </text>
+  <text x="390" y="390" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_parallel(coros): List
+  </text>
+  <text x="390" y="405" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + get_task_result(id): Any
+  </text>
+  <text x="390" y="420" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + managed_task(): AsyncContextManager
+  </text>
+  
+  <!-- ErrorHandler -->
+  <rect x="710" y="250" width="300" height="180" fill="#e74c3c" stroke="#c0392b" stroke-width="2" rx="5"/>
+  <text x="860" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    ErrorHandler
+  </text>
+  <line x1="710" y1="275" x2="1010" y2="275" stroke="white" stroke-width="1"/>
+  <text x="720" y="290" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - pattern_registry
+  </text>
+  <text x="720" y="305" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - error_history: List
+  </text>
+  <text x="720" y="320" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - max_retry_attempts: int
+  </text>
+  <text x="720" y="335" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - auto_recovery_enabled: bool
+  </text>
+  <line x1="710" y1="345" x2="1010" y2="345" stroke="white" stroke-width="1"/>
+  <text x="720" y="360" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + handle_exception(ex): ErrorInfo
+  </text>
+  <text x="720" y="375" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + get_error_history(): List
+  </text>
+  <text x="720" y="390" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + attempt_auto_recovery(error)
+  </text>
+  <text x="720" y="405" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + add_error_callback(severity)
+  </text>
+  <text x="720" y="420" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + get_error_stats(): Dict
+  </text>
+  
+  <!-- SafeOptimizer -->
+  <rect x="1040" y="250" width="300" height="180" fill="#f39c12" stroke="#e67e22" stroke-width="2" rx="5"/>
+  <text x="1190" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    SafeOptimizer
+  </text>
+  <line x1="1040" y1="275" x2="1340" y2="275" stroke="white" stroke-width="1"/>
+  <text x="1050" y="290" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - resource_manager
+  </text>
+  <text x="1050" y="305" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - async_manager
+  </text>
+  <text x="1050" y="320" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - optimization_timeout: int
+  </text>
+  <text x="1050" y="335" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - trial_timeout: int
+  </text>
+  <line x1="1040" y1="345" x2="1340" y2="345" stroke="white" stroke-width="1"/>
+  <text x="1050" y="360" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + optimize_parameters(): Result
+  </text>
+  <text x="1050" y="375" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + grid_search_optimization()
+  </text>
+  <text x="1050" y="390" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + create_study(): optuna.Study
+  </text>
+  <text x="1050" y="405" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + suggest_parameters()
+  </text>
+  <text x="1050" y="420" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + generate_recommendations()
+  </text>
+  
+  <!-- Data Classes Section -->
+  <rect x="50" y="460" width="250" height="140" fill="#16a085" stroke="#138d75" stroke-width="2" rx="5"/>
+  <text x="175" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    MemoryStats
+  </text>
+  <line x1="50" y1="485" x2="300" y2="485" stroke="white" stroke-width="1"/>
+  <text x="60" y="500" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + device: str
+  </text>
+  <text x="60" y="515" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + total_gb: float
+  </text>
+  <text x="60" y="530" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + allocated_gb: float
+  </text>
+  <text x="60" y="545" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + utilization: float
+  </text>
+  <text x="60" y="560" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + level: MemoryLevel
+  </text>
+  <text x="60" y="575" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + timestamp: float
+  </text>
+  
+  <rect x="330" y="460" width="250" height="140" fill="#17a2b8" stroke="#138496" stroke-width="2" rx="5"/>
+  <text x="455" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    TaskInfo
+  </text>
+  <line x1="330" y1="485" x2="580" y2="485" stroke="white" stroke-width="1"/>
+  <text x="340" y="500" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + task_id: str
+  </text>
+  <text x="340" y="515" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + name: str
+  </text>
+  <text x="340" y="530" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + state: TaskState
+  </text>
+  <text x="340" y="545" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + executor_type: ExecutorType
+  </text>
+  <text x="340" y="560" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + result: Any
+  </text>
+  <text x="340" y="575" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + error: Optional[Exception]
+  </text>
+  
+  <rect x="610" y="460" width="250" height="140" fill="#dc3545" stroke="#c82333" stroke-width="2" rx="5"/>
+  <text x="735" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    ErrorInfo
+  </text>
+  <line x1="610" y1="485" x2="860" y2="485" stroke="white" stroke-width="1"/>
+  <text x="620" y="500" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + id: str
+  </text>
+  <text x="620" y="515" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + category: ErrorCategory
+  </text>
+  <text x="620" y="530" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + severity: ErrorSeverity
+  </text>
+  <text x="620" y="545" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + message: str
+  </text>
+  <text x="620" y="560" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + suggestions: List[str]
+  </text>
+  <text x="620" y="575" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + resolved: bool
+  </text>
+  
+  <rect x="890" y="460" width="250" height="140" fill="#6f42c1" stroke="#5a32a3" stroke-width="2" rx="5"/>
+  <text x="1015" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    InferenceParams
+  </text>
+  <line x1="890" y1="485" x2="1140" y2="485" stroke="white" stroke-width="1"/>
+  <text x="900" y="500" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + temperature: float
+  </text>
+  <text x="900" y="515" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + top_p: float
+  </text>
+  <text x="900" y="530" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + top_k: int
+  </text>
+  <text x="900" y="545" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + max_new_tokens: int
+  </text>
+  <text x="900" y="560" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + repetition_penalty: float
+  </text>
+  <text x="900" y="575" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + validate(): ValidationResult
+  </text>
+  
+  <!-- CLI Layer -->
+  <rect x="50" y="640" width="1290" height="100" fill="#95a5a6" stroke="#7f8c8d" stroke-width="2" rx="5"/>
+  <text x="695" y="660" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white" font-weight="bold">
+    ImprovedCLI (Command Line Interface)
+  </text>
+  <line x1="50" y1="665" x2="1340" y2="665" stroke="white" stroke-width="1"/>
+  <text x="60" y="680" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - model_manager: ModelConfigManager
+  </text>
+  <text x="300" y="680" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - optimizer: SafeOptimizer
+  </text>
+  <text x="500" y="680" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - resource_manager
+  </text>
+  <text x="700" y="680" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - async_manager
+  </text>
+  <text x="900" y="680" font-family="Arial, sans-serif" font-size="9" fill="white">
+    - error_handler
+  </text>
+  <line x1="50" y1="690" x2="1340" y2="690" stroke="white" stroke-width="1"/>
+  <text x="60" y="705" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_optimize_command()
+  </text>
+  <text x="250" y="705" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_benchmark_command()
+  </text>
+  <text x="450" y="705" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_compare_command()
+  </text>
+  <text x="650" y="705" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + show_system_status()
+  </text>
+  <text x="850" y="705" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + check_requirements()
+  </text>
+  <text x="1050" y="705" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + create_parser()
+  </text>
+  <text x="60" y="720" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_clean_command()
+  </text>
+  <text x="250" y="720" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + run_list_command()
+  </text>
+  <text x="450" y="720" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + print_banner()
+  </text>
+  <text x="650" y="720" font-family="Arial, sans-serif" font-size="9" fill="white">
+    + show_welcome_screen()
+  </text>
+  
+  <!-- 관계선들 -->
+  <defs>
+    <marker id="inherit" markerWidth="12" markerHeight="8" refX="0" refY="4" orient="auto">
+      <polygon points="0 0, 0 8, 12 4" fill="none" stroke="#2c3e50" stroke-width="2"/>
+    </marker>
+    <marker id="dependency" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2c3e50"/>
+    </marker>
+  </defs>
+  
+  <!-- Inheritance: ModelConfig extends BaseConfig -->
+  <line x1="350" y1="120" x2="300" y2="120" stroke="#2c3e50" stroke-width="2" marker-end="url(#inherit)"/>
+  
+  <!-- Dependencies between core classes -->
+  <line x1="1040" y1="290" x2="350" y2="290" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  <line x1="1040" y1="310" x2="680" y2="310" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  
+  <!-- CLI dependencies -->
+  <line x1="695" y1="640" x2="200" y2="430" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  <line x1="695" y1="640" x2="530" y2="430" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  <line x1="695" y1="640" x2="860" y2="430" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  <line x1="695" y1="640" x2="1190" y2="430" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  
+  <!-- 범례 -->
+  <rect x="50" y="770" width="1290" height="120" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="1" rx="5"/>
+  <text x="695" y="790" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#2c3e50">
+    클래스 다이어그램 범례
+  </text>
+  
+  <line x1="80" y1="810" x2="120" y2="810" stroke="#2c3e50" stroke-width="2" marker-end="url(#inherit)"/>
+  <text x="130" y="815" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">상속 (Inheritance)</text>
+  
+  <line x1="280" y1="810" x2="320" y2="810" stroke="#2c3e50" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#dependency)"/>
+  <text x="330" y="815" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">의존성 (Dependency)</text>
+  
+  <rect x="500" y="800" width="20" height="15" fill="#9b59b6"/>
+  <text x="530" y="812" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">설정 클래스</text>
+  
+  <rect x="650" y="800" width="20" height="15" fill="#27ae60"/>
+  <text x="680" y="812" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">리소스 관리</text>
+  
+  <rect x="780" y="800" width="20" height="15" fill="#3498db"/>
+  <text x="810" y="812" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">비동기 관리</text>
+  
+  <rect x="900" y="800" width="20" height="15" fill="#e74c3c"/>
+  <text x="930" y="812" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">오류 처리</text>
+  
+  <rect x="1020" y="800" width="20" height="15" fill="#f39c12"/>
+  <text x="1050" y="812" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">최적화</text>
+  
+  <rect x="1150" y="800" width="20" height="15" fill="#16a085"/>
+  <text x="1180" y="812" font-family="Arial, sans-serif" font-size="10" fill="#2c3e50">데이터 클래스</text>
+  
+  <text x="80" y="840" font-family="Arial, sans-serif" font-size="9" fill="#7f8c8d">
+    주요 특징: 추상 클래스 기반 설계, 스레드 안전 싱글톤 팩토리, 강타입 Enum 사용, 컴포지션 패턴 적용
+  </text>
+  <text x="80" y="855" font-family="Arial, sans-serif" font-size="9" fill="#7f8c8d">
+    아키텍처: 계층화된 구조와 의존성 주입 패턴을 통한 모듈화된 설계
+  </text>
+  <text x="80" y="870" font-family="Arial, sans-serif" font-size="9" fill="#7f8c8d">
+    안전성: 메모리 안전, 스레드 안전, 타입 안전을 보장하는 설계 원칙 적용
+  </text>
+</svg>
